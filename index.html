@@ -1,27 +1,210 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#07101a">
-<title>昊昊 · 飞往 22 岁</title><meta name="description" content="写下愿望，飞往新的一岁。给昊昊的 22 岁生日来信。">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2307101a'/%3E%3Cpath d='M7 24L24 7M10 7h14v14' fill='none' stroke='%23d8c19a' stroke-width='2'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06101a">
+  <title>HH022 · 飞往 22 岁</title>
+  <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="masthead"><a href="#" class="brand" aria-label="回到首页">H / 22<span>THE NEXT CHAPTER</span></a><div class="edition">A FLIGHT DEDICATED TO YOU<br><span>15 SEPTEMBER 2026</span></div></header>
-<main>
-<section class="hero" aria-labelledby="hero-title">
-<div class="photograph" role="img" aria-label="夜色中，一架飞机飞越云层，驶向远处的地平线"></div><div class="hero-shade"></div>
-<div class="hero-copy"><p class="eyebrow">FOR HAOHAO · CHAPTER 22</p><h1 id="hero-title">心有所向。<br>天空无界。</h1><p class="dedication">昊昊，22 岁生日快乐。</p><p class="intro">愿你奔赴所爱，也被温柔以待。<br>从这里，飞往新的一岁。</p><button class="primary" id="open">阅读生日来信 <span aria-hidden="true">↗</span></button></div>
-<div class="horizon-label"><span>BEYOND THE HORIZON</span><i></i><span>心有方向，前路晴朗</span></div>
-<div class="flight-strip"><div><span class="meta">PILOT IN THE MAKING</span><strong>昊昊 <small>HAOHAO</small></strong></div><div><span class="meta">DEPARTURE</span><strong>2004.09.15</strong></div><div><span class="meta">NEXT CHAPTER</span><strong>22 <small>岁 · 无界未来</small></strong></div><div class="strip-end"><span class="meta">A NOTE FOR YOU</span><p>每一次起飞都勇敢，<br>每一次归来都平安。</p></div></div>
-</section>
-<footer><span>有你的未来，值得期待。</span><span>WITH LOVE, ALWAYS.</span></footer>
-</main>
-<dialog id="experience" aria-labelledby="experience-title">
-<button class="close" id="close" aria-label="关闭生日来信">×</button>
-<section id="letter" class="panel"><p class="eyebrow">01 / A LETTER TO YOU</p><h2 id="experience-title" tabindex="-1">亲爱的昊昊，</h2><div class="letter-body"><p>22 岁，是又一段旅程的起点。<br>愿你离向往的蓝天越来越近，<br>也记得照顾好努力追梦的自己。</p><p>未来有很多航程，很多未知。<br>愿你带着热爱与勇气，稳稳地向前。<br>我想陪你走过每一个平凡又珍贵的日子。</p><p>去追逐你的天空吧。<br>愿你心有方向，前路晴朗。</p></div><div class="signature">生日快乐。爱你。</div><button class="primary" id="write-wish">写下新一岁的愿望 <span aria-hidden="true">↗</span></button></section>
-<section id="wish-panel" class="panel" hidden><p class="eyebrow">02 / BEFORE TAKEOFF</p><h2 id="wish-title" tabindex="-1">下一程，心向何处。</h2><p class="panel-intro">把这一岁的心愿，交给今晚的天空。</p><form id="wish-form"><label for="wish">你的生日愿望</label><textarea id="wish" maxlength="120" rows="4" placeholder="愿新的一岁……" required aria-describedby="wish-help wish-count"></textarea><div class="input-meta"><span id="wish-help">愿望仅留在本次页面中</span><span id="wish-count">0 / 120</span></div><p id="error" class="error" role="alert" hidden>写下一句话，再让愿望起航。</p><button class="primary" type="submit">让愿望起航 <span aria-hidden="true">↗</span></button></form><button class="text-button" id="back">返回来信</button></section>
-<section id="flight" hidden aria-labelledby="flight-title"><div class="flight-photo"></div><div class="flight-shade"></div><div class="flight-top"><p class="eyebrow">03 / INTO THE NIGHT</p><p id="flight-status" aria-live="polite">准备起航</p></div><div id="traveler"><svg class="aircraft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 8.6 21 11.8 22 10l-3.2-6.8-6.8-3.2-1.8 1 3.2 3.2-4.6 4.6L4 7 2 9l4 4-4 4 2 2 4-4 4 4 2-2-1.8-4.8Z" transform="translate(0 1)"/></svg><span id="travel-wish"></span></div><div class="flight-trail" aria-hidden="true"></div><div id="arrival" hidden><p class="eyebrow">YOUR WISH IS ON ITS WAY</p><h2 id="flight-title" tabindex="-1">心愿已起航。</h2><blockquote id="wish-quote"></blockquote><p class="arrival-note">昊昊，放心飞。<br>我会一直在。</p><div class="arrival-actions"><button class="primary" id="replay">再看一次起航 <span aria-hidden="true">↗</span></button><button class="text-button" id="new-wish">写下另一个愿望</button></div></div><div class="flight-progress" aria-hidden="true"><span></span></div></section>
-</dialog>
-<script src="app.js"></script>
-</body></html>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <section class="boarding" id="boarding" aria-labelledby="boarding-title">
+    <div class="boarding-bg" aria-hidden="true"></div>
+    <div class="boarding-shell">
+      <p class="micro">PRIVATE FLIGHT · 15 SEP 2026</p>
+      <div class="boarding-pass" id="boarding-pass">
+        <div class="pass-main">
+          <div class="pass-brand"><span>HH</span><small>PRIVATE AIR</small></div>
+          <div class="pass-route" aria-hidden="true">
+            <span>21</span><i></i><svg viewBox="0 0 64 64"><path d="M10 35 53 15l-8 16 10 8-4 4-12-5-8 14-5-2 4-16-14-9z"/></svg><i></i><span>22</span>
+          </div>
+          <h1 id="boarding-title">飞往 22 岁的<br>私人航班</h1>
+          <div class="pass-grid">
+            <div><span>PASSENGER</span><strong>昊昊 HAOHAO</strong></div>
+            <div><span>FLIGHT</span><strong>HH022</strong></div>
+            <div><span>FROM</span><strong>21</strong></div>
+            <div><span>TO</span><strong>22</strong></div>
+            <div><span>DATE</span><strong>15 SEP 2026</strong></div>
+            <div><span>GATE</span><strong>LOVE</strong></div>
+          </div>
+        </div>
+        <div class="pass-stub">
+          <p>BOARDING PASS</p>
+          <strong>HH022</strong>
+          <div class="barcode" aria-hidden="true"></div>
+          <small>STATUS</small>
+          <b>READY</b>
+        </div>
+      </div>
+      <button class="cta ghost-light" id="board-btn">开始登机 <span>→</span></button>
+      <button class="skip" id="skip-intro">直接进入航程</button>
+      <p class="boarding-music-hint"><span>♫</span> 登机后，音乐会轻轻开始</p>
+    </div>
+  </section>
+
+  <header class="topbar" id="topbar">
+    <a class="wordmark" href="#hero" aria-label="回到首页">HH022 <span>PRIVATE FLIGHT</span></a>
+    <nav aria-label="页面导航">
+      <a href="#log">LOG</a>
+      <a href="#windows">WINDOWS</a>
+      <a href="#letter">LETTER</a>
+      <a href="#wish">WISH</a>
+    </nav>
+    <div class="top-actions">
+      <button class="music-control" id="music-control" type="button" aria-pressed="false" aria-label="切换背景音乐">
+        <span class="music-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="music-label">SOUND ON</span>
+      </button>
+      <div class="top-status"><i></i> IN FLIGHT</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="hero-photo" id="hero-photo" aria-hidden="true"></div>
+      <div class="hero-vignette" aria-hidden="true"></div>
+      <div class="stars" aria-hidden="true"></div>
+      <div class="hero-copy reveal">
+        <p class="micro gold">FOR HAOHAO · FLIGHT HH022</p>
+        <h2>心有所向。<br><em>天空无界。</em></h2>
+        <p class="hero-note">昊昊，22 岁生日快乐。<br>愿这一程有风、有光，也有我。</p>
+      </div>
+      <div class="hero-data reveal delay-1">
+        <div><span>ALTITUDE</span><strong>22,000 FT</strong></div>
+        <div><span>DESTINATION</span><strong>CHAPTER 22</strong></div>
+        <div><span>WEATHER</span><strong>CLEAR AHEAD</strong></div>
+      </div>
+      <a class="scroll-cue" href="#log"><span>SCROLL TO DEPART</span><i></i></a>
+      <div class="hero-index" aria-hidden="true">22</div>
+    </section>
+
+    <section class="section log-section" id="log">
+      <div class="section-head reveal">
+        <p class="micro gold">01 · FLIGHT LOG</p>
+        <h3>从 21 岁，飞到 22 岁。</h3>
+        <p>不是所有值得记住的瞬间都轰轰烈烈。很多时候，是忙碌里仍然记得回应，是普通日子里一直没有缺席。</p>
+      </div>
+      <div class="route-shell">
+        <div class="route-line" aria-hidden="true"><span id="route-progress"></span></div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </section>
+
+    <section class="section window-section" id="windows">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">02 · WINDOW SEATS</p>
+          <h3>有些风景，<br>只想和你一起看。</h3>
+        </div>
+        <p>把三段最想收藏的画面，做成三扇舷窗。它们不是相册里的编号，而是这一程真正经过的风景。</p>
+      </div>
+      <div class="windows-grid" id="windows-grid"></div>
+    </section>
+
+    <section class="letter-section" id="letter">
+      <div class="letter-sky" aria-hidden="true"></div>
+      <article class="letter-card reveal">
+        <div class="letter-meta">
+          <p class="micro gold">03 · A LETTER AT 30,000 FT</p>
+          <span>PRIVATE / CONFIDENTIAL</span>
+        </div>
+        <h3>亲爱的昊昊，</h3>
+        <div class="letter-copy" id="letter-copy">
+          <p>22 岁，不只是数字往前走了一格。它更像一次新的起飞：你开始更清楚自己想去哪里，也更有能力为那个方向负责。</p>
+          <p>我喜欢你认真奔赴目标的样子，也希望你在很用力生活的时候，别忘了照顾自己。未来当然会有乱流，会有看不清方向的时候，但我相信你会一次次把航向校准回来。</p>
+          <p>我也想继续陪你经历那些并不宏大的时刻：分享一天里琐碎的小事，在你忙的时候等一等，在你开心的时候比你更开心。</p>
+          <p>所以放心飞吧。去更高、更远的地方。你不需要每一程都完美抵达，只要始终知道自己为什么出发。</p>
+        </div>
+        <div class="signature-row">
+          <div><span>WITH LOVE</span><strong>生日快乐。爱你。</strong></div>
+          <div class="signature-mark">JY → HH</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="section wish-section" id="wish">
+      <div class="wish-layout">
+        <div class="wish-copy reveal">
+          <p class="micro gold">04 · BEFORE TAKEOFF</p>
+          <h3>下一程，<br>心向何处。</h3>
+          <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
+          <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
+        </div>
+        <form class="wish-form reveal delay-1" id="wish-form">
+          <label for="wish-input">WISH FOR CHAPTER 22</label>
+          <textarea id="wish-input" maxlength="120" rows="5" placeholder="愿新的一岁……" required></textarea>
+          <div class="form-meta"><span id="wish-count">0 / 120</span><span id="wish-error" role="alert"></span></div>
+          <button class="cta gold-btn" type="submit">CONFIRM & TAKE OFF <span>↗</span></button>
+        </form>
+      </div>
+    </section>
+
+    <section class="section recorder-section" id="recorder">
+      <div class="section-head reveal">
+        <p class="micro gold">05 · FLIGHT RECORDER</p>
+        <h3>写给未来的黑匣子。</h3>
+      </div>
+      <div class="recorder-card reveal" id="recorder-card">
+        <div class="recorder-led"><i></i> REC</div>
+        <div class="recorder-grid">
+          <div><span>PASSENGER</span><strong>HAOHAO</strong></div>
+          <div><span>FLIGHT</span><strong>HH022</strong></div>
+          <div><span>RECORDED</span><strong id="recorded-date">—</strong></div>
+          <div><span>NEXT INSPECTION</span><strong>15 SEP 2027</strong></div>
+        </div>
+        <blockquote id="stored-wish">还没有封存愿望。</blockquote>
+        <div class="recorder-actions">
+          <button class="text-btn" id="edit-wish">重新写一个愿望</button>
+          <button class="text-btn danger" id="clear-wish">清除本机记录</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="arrival" id="arrival">
+      <div class="arrival-photo arrival-photo-memory" aria-hidden="true"></div>
+      <div class="arrival-shade" aria-hidden="true"></div>
+      <div class="arrival-copy reveal">
+        <p class="micro gold">ARRIVAL · CHAPTER 22</p>
+        <div class="arrival-number">22</div>
+        <h3>这一程抵达了。<br>下一程，我们继续一起走。</h3>
+        <p>放心飞。<br>我一直在。</p>
+        <div class="arrival-sign">JY → HH · 15 SEP 2026</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>HH022 · PRIVATE FLIGHT ARCHIVE</span>
+    <span>WHEREVER YOU FLY, YOU HAVE A HOME TO RETURN TO.</span>
+  </footer>
+
+  <div class="takeoff" id="takeoff" hidden aria-live="polite">
+    <button class="takeoff-close" id="takeoff-close" aria-label="关闭起飞动画">×</button>
+    <div class="takeoff-bg" aria-hidden="true"></div>
+    <div class="runway" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="takeoff-hud">
+      <p class="micro">HH022 · TAKEOFF SEQUENCE</p>
+      <strong id="takeoff-status">DOORS CLOSED</strong>
+    </div>
+    <div class="takeoff-plane" id="takeoff-plane" aria-hidden="true">
+      <svg viewBox="0 0 90 90"><path d="M10 49 75 20l-12 24 15 11-7 7-19-8-13 24-8-4 7-27-22-13z"/></svg>
+    </div>
+    <div class="takeoff-result" id="takeoff-result" hidden>
+      <p class="micro gold">YOUR WISH IS ON ITS WAY</p>
+      <h3>心愿已起航。</h3>
+      <blockquote id="takeoff-wish"></blockquote>
+      <p>DESTINATION · 23</p>
+      <button class="cta ghost-light" id="seal-record">封存进飞行记录器 <span>→</span></button>
+    </div>
+    <div class="takeoff-progress"><i id="takeoff-progress"></i></div>
+  </div>
+
+  <audio id="bgm" src="bgm.mp3" loop preload="metadata"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
