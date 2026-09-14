@@ -655,6 +655,7 @@ function renderAtlas() {
     atlasEngine.setFlights(records);
     if (records[0]) atlasEngine.focusFlight(records[0].id, false);
   }
+  window.HH022_REFRESH_LIFE_OS?.();
 }
 
 function selectAtlasFlight(id, card = null) {
@@ -1378,6 +1379,7 @@ function renderGallery() {
     galleryStage.appendChild(card);
   });
   updateGalleryDeck();
+  window.HH022_REFRESH_LIFE_OS?.();
 }
 function updateGalleryDeck() {
   const cards = $$('.memory-card', galleryStage);
@@ -1479,6 +1481,7 @@ galleryUploadForm?.addEventListener('submit', async (event) => {
     galleryLocalRecords = await idbGetAll(GALLERY_STORE);
     galleryActive = STARTER_GALLERY.length;
     renderGallery();
+    window.HH022_REFRESH_LIFE_OS?.();
   } catch (error) {
     console.warn(error);
     galleryFormError.textContent = '保存失败。可以少选几张或换一张尺寸更小的图片再试。';
@@ -1517,12 +1520,21 @@ const journalStage = $('#journal-stage');
 const journalAircraft = $('#journal-aircraft');
 const journalHours = $('#journal-hours');
 const journalMood = $('#journal-mood');
+const journalWeather = $('#journal-weather');
 const journalTitle = $('#journal-title');
 const journalNote = $('#journal-note');
 const journalLesson = $('#journal-lesson');
 const journalFiles = $('#journal-files');
 const journalFormError = $('#journal-form-error');
 const journalSave = $('#journal-save');
+const journalVoiceRecord = $('#journal-voice-record');
+const journalVoiceStop = $('#journal-voice-stop');
+const journalVoiceClear = $('#journal-voice-clear');
+const journalVoiceStatus = $('#journal-voice-status');
+const journalVoiceTimer = $('#journal-voice-timer');
+const journalVoicePreview = $('#journal-voice-preview');
+const journalVoicePlayback = $('#journal-voice-playback');
+const journalViewAudio = $('#journal-view-audio');
 const journalStatCount = $('#journal-stat-count');
 const journalStatHours = $('#journal-stat-hours');
 const journalStatLatest = $('#journal-stat-latest');
@@ -1531,6 +1543,15 @@ let journalRecords = [];
 let selectedJournalId = null;
 let editingJournalId = null;
 let journalViewObjectUrls = [];
+let journalVoiceRecorder = null;
+let journalVoiceStream = null;
+let journalVoiceChunks = [];
+let journalVoiceBlob = null;
+let journalVoiceDuration = 0;
+let journalVoiceStartedAt = 0;
+let journalVoiceTimerHandle = 0;
+let journalVoicePreviewUrl = '';
+let journalVoiceWasCleared = false;
 
 function clearJournalViewUrls() {
   journalViewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -1570,6 +1591,7 @@ function renderJournalIndex() {
   if (!selectedJournalId && records[0]) selectedJournalId = records[0].id;
   if (selectedJournalId && !records.some(r => r.id === selectedJournalId)) selectedJournalId = records[0]?.id || null;
   renderJournalReader();
+  window.HH022_REFRESH_LIFE_OS?.();
 }
 function renderJournalReader() {
   clearJournalViewUrls();
@@ -1580,12 +1602,14 @@ function renderJournalReader() {
   if (!record) return;
   journalViewDate.textContent = prettyDate(record.date);
   journalViewTitle.textContent = record.title || 'Training log';
-  journalViewTags.innerHTML = [
+  const journalTags = [
     record.stage,
     record.aircraft,
     Number(record.hours) ? `${Number(record.hours).toFixed(1)} H` : '',
-    record.mood ? `MOOD · ${record.mood}` : ''
-  ].filter(Boolean).map((tag, index, array) => `<span class="${index === array.length - 1 && record.mood ? 'mood' : ''}">${escapeHtml(tag)}</span>`).join('');
+    record.mood ? `MOOD · ${record.mood}` : '',
+    record.weather ? `INNER WEATHER · ${record.weather}` : ''
+  ].filter(Boolean);
+  journalViewTags.innerHTML = journalTags.map((tag) => `<span class="${tag.startsWith('MOOD') ? 'mood' : ''}">${escapeHtml(tag)}</span>`).join('');
   journalViewNote.textContent = record.note || '—';
   journalViewLesson.textContent = record.lesson || '这一天还没有单独写下经验教训。';
   journalViewPhotos.innerHTML = '';
@@ -1600,6 +1624,15 @@ function renderJournalReader() {
     });
     journalViewPhotos.appendChild(button);
   });
+  if (record.voice?.blob) {
+    const voiceUrl = URL.createObjectURL(record.voice.blob);
+    journalViewObjectUrls.push(voiceUrl);
+    journalViewAudio.src = voiceUrl;
+    journalVoicePlayback.hidden = false;
+  } else {
+    journalViewAudio.removeAttribute('src');
+    journalVoicePlayback.hidden = true;
+  }
   const idx = records.findIndex((item) => item.id === record.id);
   journalPagePosition.textContent = `${String(idx + 1).padStart(2,'0')} / ${String(records.length).padStart(2,'0')}`;
   journalPrev.disabled = idx <= 0;
@@ -1612,6 +1645,111 @@ function selectJournal(id) {
   const button = $(`.journal-date-button[data-id="${CSS.escape(id)}"]`, journalDateList);
   button?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'nearest', inline:'nearest' });
 }
+
+function formatVoiceTime(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+}
+function stopJournalVoiceStream() {
+  journalVoiceStream?.getTracks?.().forEach((track) => track.stop());
+  journalVoiceStream = null;
+}
+function syncJournalVoicePreview() {
+  if (journalVoicePreviewUrl) URL.revokeObjectURL(journalVoicePreviewUrl);
+  journalVoicePreviewUrl = '';
+  if (journalVoiceBlob) {
+    journalVoicePreviewUrl = URL.createObjectURL(journalVoiceBlob);
+    journalVoicePreview.src = journalVoicePreviewUrl;
+    journalVoicePreview.hidden = false;
+    journalVoiceClear.hidden = false;
+    journalVoiceTimer.textContent = formatVoiceTime(journalVoiceDuration);
+    journalVoiceStatus.textContent = 'RECORDED';
+    journalVoiceStatus.classList.remove('recording');
+  } else {
+    journalVoicePreview.pause?.();
+    journalVoicePreview.removeAttribute('src');
+    journalVoicePreview.hidden = true;
+    journalVoiceClear.hidden = true;
+    journalVoiceTimer.textContent = '00:00';
+    journalVoiceStatus.textContent = 'READY';
+    journalVoiceStatus.classList.remove('recording');
+  }
+}
+function resetJournalVoiceState(existingVoice = null) {
+  if (journalVoiceRecorder?.state === 'recording') {
+    try { journalVoiceRecorder.stop(); } catch {}
+  }
+  stopJournalVoiceStream();
+  clearInterval(journalVoiceTimerHandle);
+  journalVoiceRecorder = null;
+  journalVoiceChunks = [];
+  journalVoiceBlob = existingVoice?.blob instanceof Blob ? existingVoice.blob : null;
+  journalVoiceDuration = Number(existingVoice?.duration) || 0;
+  journalVoiceWasCleared = false;
+  journalVoiceRecord.disabled = false;
+  journalVoiceStop.disabled = true;
+  syncJournalVoicePreview();
+}
+async function startJournalVoiceRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    journalFormError.textContent = '当前浏览器暂不支持网页录音。可以换最新版 Safari / Chrome 再试。';
+    return;
+  }
+  try {
+    journalFormError.textContent = '';
+    stopJournalVoiceStream();
+    journalVoiceStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    const candidates = ['audio/mp4','audio/webm;codecs=opus','audio/webm'];
+    const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported?.(type)) || '';
+    journalVoiceChunks = [];
+    journalVoiceRecorder = new MediaRecorder(journalVoiceStream, mimeType ? { mimeType } : undefined);
+    journalVoiceRecorder.addEventListener('dataavailable', (event) => {
+      if (event.data?.size) journalVoiceChunks.push(event.data);
+    });
+    journalVoiceRecorder.addEventListener('stop', () => {
+      clearInterval(journalVoiceTimerHandle);
+      const duration = Math.max(1, (performance.now() - journalVoiceStartedAt) / 1000);
+      const type = journalVoiceRecorder?.mimeType || journalVoiceChunks[0]?.type || 'audio/webm';
+      journalVoiceBlob = new Blob(journalVoiceChunks, { type });
+      journalVoiceDuration = duration;
+      journalVoiceWasCleared = false;
+      journalVoiceRecord.disabled = false;
+      journalVoiceStop.disabled = true;
+      stopJournalVoiceStream();
+      syncJournalVoicePreview();
+    });
+    journalVoiceStartedAt = performance.now();
+    journalVoiceTimer.textContent = '00:00';
+    journalVoiceStatus.textContent = 'REC';
+    journalVoiceStatus.classList.add('recording');
+    journalVoiceRecord.disabled = true;
+    journalVoiceStop.disabled = false;
+    journalVoiceRecorder.start(250);
+    journalVoiceTimerHandle = setInterval(() => {
+      const elapsed = (performance.now() - journalVoiceStartedAt) / 1000;
+      journalVoiceTimer.textContent = formatVoiceTime(elapsed);
+      if (elapsed >= 180 && journalVoiceRecorder?.state === 'recording') journalVoiceRecorder.stop();
+    }, 250);
+  } catch (error) {
+    console.warn(error);
+    stopJournalVoiceStream();
+    journalFormError.textContent = '没有获得麦克风权限，或当前设备无法开始录音。';
+  }
+}
+function stopJournalVoiceRecording() {
+  if (journalVoiceRecorder?.state === 'recording') journalVoiceRecorder.stop();
+}
+journalVoiceRecord?.addEventListener('click', startJournalVoiceRecording);
+journalVoiceStop?.addEventListener('click', stopJournalVoiceRecording);
+journalVoiceClear?.addEventListener('click', () => {
+  journalVoiceBlob = null;
+  journalVoiceDuration = 0;
+  journalVoiceWasCleared = true;
+  syncJournalVoicePreview();
+});
+
 function openJournalForm(record = null) {
   editingJournalId = record?.id || null;
   journalFormTitle.textContent = record ? '编辑这篇训练日志' : '记录今天的训练';
@@ -1620,6 +1758,8 @@ function openJournalForm(record = null) {
   journalAircraft.value = record?.aircraft || '';
   journalHours.value = record?.hours || '';
   journalMood.value = record?.mood || '平静';
+  journalWeather.value = record?.weather || 'CAVOK';
+  resetJournalVoiceState(record?.voice || null);
   journalTitle.value = record?.title || '';
   journalNote.value = record?.note || '';
   journalLesson.value = record?.lesson || '';
@@ -1629,6 +1769,8 @@ function openJournalForm(record = null) {
   journalFormShell.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'center' });
 }
 function closeJournalForm() {
+  stopJournalVoiceStream();
+  clearInterval(journalVoiceTimerHandle);
   journalFormShell.hidden = true;
   editingJournalId = null;
 }
@@ -1645,6 +1787,7 @@ journalDelete?.addEventListener('click', async () => {
   journalRecords = await idbGetAll(JOURNAL_STORE);
   selectedJournalId = sortedJournal()[0]?.id || null;
   renderJournalIndex();
+  window.HH022_REFRESH_LIFE_OS?.();
 });
 journalPrev?.addEventListener('click', () => {
   const records = sortedJournal();
@@ -1659,6 +1802,10 @@ journalNext?.addEventListener('click', () => {
 
 journalForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (journalVoiceRecorder?.state === 'recording') {
+    journalFormError.textContent = '先停止语音录制，再保存这篇日志。';
+    return;
+  }
   if (!journalDate.value || !journalTitle.value.trim() || !journalNote.value.trim()) {
     journalFormError.textContent = '日期、标题和今天的记录需要填写。';
     return;
@@ -1681,6 +1828,8 @@ journalForm?.addEventListener('submit', async (event) => {
       aircraft: journalAircraft.value.trim(),
       hours: Number(journalHours.value) || 0,
       mood: journalMood.value,
+      weather: journalWeather.value || 'CAVOK',
+      voice: journalVoiceBlob ? { blob: journalVoiceBlob, duration: journalVoiceDuration, type: journalVoiceBlob.type || 'audio/webm' } : (journalVoiceWasCleared ? null : (existing?.voice || null)),
       title: journalTitle.value.trim(),
       note: journalNote.value.trim(),
       lesson: journalLesson.value.trim(),
@@ -1693,6 +1842,7 @@ journalForm?.addEventListener('submit', async (event) => {
     selectedJournalId = record.id;
     closeJournalForm();
     renderJournalIndex();
+    window.HH022_REFRESH_LIFE_OS?.();
     $('#journal-reader')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'center' });
   } catch (error) {
     console.warn(error);
@@ -1730,15 +1880,17 @@ async function exportPrivateArchive() {
   for (const item of journal) {
     const photos = [];
     for (const photo of item.photos || []) photos.push({ ...photo, blob: await blobToDataUrl(photo.blob || photo) });
-    journalPortable.push({ ...item, photos });
+    const voice = item.voice?.blob ? { ...item.voice, blob: await blobToDataUrl(item.voice.blob) } : null;
+    journalPortable.push({ ...item, photos, voice });
   }
   const payload = {
     kind: 'HH022_PRIVATE_ARCHIVE',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     gallery: galleryPortable,
     journal: journalPortable,
     flights: readLocalFlights(),
+    milestones: readGrowthMilestones(),
     wish: localStorage.getItem(STORAGE_KEY) || null
   };
   const blob = new Blob([JSON.stringify(payload)], { type:'application/json' });
@@ -1759,7 +1911,11 @@ async function importPrivateArchive(file) {
   for (const item of payload.journal || []) {
     if (!item?.id) continue;
     const photos = (item.photos || []).map((photo) => ({ ...photo, blob:dataUrlToBlob(photo.blob) }));
-    await idbPut(JOURNAL_STORE, { ...item, photos });
+    const voice = item.voice?.blob ? { ...item.voice, blob:dataUrlToBlob(item.voice.blob) } : null;
+    await idbPut(JOURNAL_STORE, { ...item, photos, voice });
+  }
+  if (payload.milestones && typeof payload.milestones === 'object') {
+    localStorage.setItem(GROWTH_MILESTONE_KEY, JSON.stringify(payload.milestones));
   }
   if (Array.isArray(payload.flights)) {
     localFlights = payload.flights;
@@ -1771,6 +1927,7 @@ async function importPrivateArchive(file) {
   journalRecords = await idbGetAll(JOURNAL_STORE);
   renderGallery();
   renderJournalIndex();
+  refreshLifeOS();
 }
 
 galleryExport?.addEventListener('click', async () => {
@@ -1794,6 +1951,309 @@ galleryImportFile?.addEventListener('change', async () => {
   }
 });
 
+
+/* =========================================================
+   V8 · FLIGHT LIFE OS
+   Constellation / growth cockpit / badges / inner weather
+   ========================================================= */
+const GROWTH_MILESTONE_KEY = 'hh022-growth-milestones-v1';
+const MILESTONE_DEFS = [
+  { id:'ground', code:'01', title:'理论与基础', note:'开始系统学飞，把基本功一项项搭起来。' },
+  { id:'circuit', code:'02', title:'起落航线', note:'让每一次进近、落地和复飞都更稳定。' },
+  { id:'solo', code:'03', title:'首次单飞', note:'真正独自把飞机带上天空，再安全带回来。' },
+  { id:'crosscountry', code:'04', title:'转场训练', note:'开始把航图、天气、航路和决策连成一整程。' },
+  { id:'instrument', code:'05', title:'仪表训练', note:'学会在更少外界参照时依然相信程序和判断。' },
+  { id:'nextstage', code:'06', title:'下一阶段 / 执照', note:'这个节点由你自己定义，也由你自己点亮。' }
+];
+const WEATHER_META = {
+  'CAVOK': { icon:'○', label:'状态很好' },
+  'CLEAR': { icon:'☼', label:'清朗' },
+  'CLOUDY': { icon:'◌', label:'有点迷茫' },
+  'CROSSWIND': { icon:'↝', label:'有挑战' },
+  'TURBULENCE': { icon:'≈', label:'起伏很大' },
+  'STORM': { icon:'ϟ', label:'很难熬' },
+  'AFTER RAIN': { icon:'◇', label:'熬过去了' }
+};
+
+const constellationCanvas = $('#life-constellation');
+const constellationStage = $('#constellation-stage');
+const constellationTooltip = $('#constellation-tooltip');
+const constellationEmpty = $('#constellation-empty');
+const constellationCount = $('#constellation-count');
+const growthDial = $('#growth-dial');
+const growthPercent = $('#growth-percent');
+const osHours = $('#os-hours');
+const osTypes = $('#os-types');
+const osAirports = $('#os-airports');
+const osLogdays = $('#os-logdays');
+const milestoneList = $('#milestone-list');
+const badgeWall = $('#badge-wall');
+const badgeProgress = $('#badge-progress');
+const weatherYear = $('#weather-year');
+const weatherYearGrid = $('#weather-year-grid');
+const weatherSummary = $('#weather-summary');
+
+let constellationPoints = [];
+let constellationRenderFrame = 0;
+
+function readGrowthMilestones() {
+  try { return JSON.parse(localStorage.getItem(GROWTH_MILESTONE_KEY) || '{}') || {}; }
+  catch { return {}; }
+}
+function writeGrowthMilestones(value) {
+  localStorage.setItem(GROWTH_MILESTONE_KEY, JSON.stringify(value || {}));
+}
+function journalHasStage(stage) {
+  return journalRecords.some((item) => String(item.stage || '').includes(stage));
+}
+function milestoneEvidence(id) {
+  if (id === 'ground') return journalRecords.length > 0;
+  if (id === 'circuit') return journalHasStage('起落航线');
+  if (id === 'solo') return journalHasStage('单飞');
+  if (id === 'crosscountry') return journalHasStage('转场训练');
+  if (id === 'instrument') return journalHasStage('仪表训练');
+  return false;
+}
+function effectiveMilestones() {
+  const manual = readGrowthMilestones();
+  const result = {};
+  MILESTONE_DEFS.forEach((item) => { result[item.id] = Boolean(manual[item.id] || milestoneEvidence(item.id)); });
+  return result;
+}
+function renderGrowthCockpit() {
+  if (!milestoneList) return;
+  const effective = effectiveMilestones();
+  const manual = readGrowthMilestones();
+  const completed = MILESTONE_DEFS.filter((item) => effective[item.id]).length;
+  const percent = Math.round((completed / MILESTONE_DEFS.length) * 100);
+  growthPercent.textContent = `${percent}%`;
+  growthDial.style.setProperty('--progress', `${percent * 3.6}deg`);
+
+  const hours = journalRecords.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+  const aircraftTypes = new Set([
+    ...getAllFlights().map((item) => item.aircraft).filter((v) => v && v !== 'UNKNOWN'),
+    ...journalRecords.map((item) => String(item.aircraft || '').trim().toUpperCase()).filter(Boolean)
+  ]);
+  const airportCodes = new Set();
+  getAllFlights().forEach((item) => { airportCodes.add(item.from); airportCodes.add(item.to); });
+  osHours.textContent = `${hours.toFixed(1)} H`;
+  osTypes.textContent = aircraftTypes.size;
+  osAirports.textContent = airportCodes.size;
+  osLogdays.textContent = new Set(journalRecords.map((item) => item.date).filter(Boolean)).size;
+
+  milestoneList.innerHTML = '';
+  MILESTONE_DEFS.forEach((item) => {
+    const evidence = milestoneEvidence(item.id);
+    const done = effective[item.id];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `milestone-item ${done ? 'done' : ''} ${evidence ? 'evidence' : ''}`;
+    button.innerHTML = `<span class="milestone-mark">${done ? '✓' : item.code}</span><span class="milestone-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.note)}</span></span><span>${evidence ? 'FROM LOG' : (manual[item.id] ? 'MARKED' : 'TAP TO MARK')}</span>`;
+    button.addEventListener('click', () => {
+      if (evidence) return;
+      const next = readGrowthMilestones();
+      next[item.id] = !next[item.id];
+      writeGrowthMilestones(next);
+      renderGrowthCockpit();
+      renderBadges();
+    });
+    milestoneList.appendChild(button);
+  });
+}
+
+function badgeMetrics() {
+  const flights = getAllFlights();
+  const hours = journalRecords.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+  const types = new Set([
+    ...flights.map((item) => item.aircraft).filter((v) => v && v !== 'UNKNOWN'),
+    ...journalRecords.map((item) => String(item.aircraft || '').trim().toUpperCase()).filter(Boolean)
+  ]);
+  const airports = new Set();
+  flights.forEach((item) => { airports.add(item.from); airports.add(item.to); });
+  const textCorpus = journalRecords.map((item) => `${item.stage || ''} ${item.title || ''} ${item.note || ''}`).join(' ');
+  return { flights, hours, types, airports, textCorpus };
+}
+function renderBadges() {
+  if (!badgeWall) return;
+  const m = badgeMetrics();
+  const milestone = effectiveMilestones();
+  const defs = [
+    { symbol:'01', title:'FIRST LOG', note:'写下第一篇学飞日志', unlocked:journalRecords.length >= 1 },
+    { symbol:'↗', title:'FIRST ROUTE', note:'记录第一程航班', unlocked:m.flights.length >= 1 },
+    { symbol:'10H', title:'TEN HOURS', note:'累计记录 10 小时训练', unlocked:m.hours >= 10 },
+    { symbol:'SOLO', title:'SOLO WINGS', note:'首次单飞', unlocked:milestone.solo },
+    { symbol:'N', title:'NIGHT OWL', note:'记录过一次夜航', unlocked:journalHasStage('夜航') || /夜航/.test(m.textCorpus) },
+    { symbol:'3T', title:'TYPE COLLECTOR', note:'记录 3 种不同机型', unlocked:m.types.size >= 3 },
+    { symbol:'5A', title:'AIRPORT EXPLORER', note:'去过 5 个机场', unlocked:m.airports.size >= 5 },
+    { symbol:'10F', title:'TEN FLIGHTS', note:'记录 10 程航班', unlocked:m.flights.length >= 10 },
+    { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) }
+  ];
+  badgeProgress.textContent = `${defs.filter((item) => item.unlocked).length} / ${defs.length} UNLOCKED`;
+  badgeWall.innerHTML = defs.map((item) => `<div class="flight-badge ${item.unlocked ? 'unlocked' : ''}"><div class="badge-symbol">${escapeHtml(item.symbol)}</div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.note)}</span></div>`).join('');
+}
+
+function dominantValue(items, key) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const value = String(item[key] || '').trim();
+    if (!value) return;
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a,b) => b[1] - a[1])[0]?.[0] || '';
+}
+function renderInnerWeather() {
+  if (!weatherYearGrid) return;
+  const years = journalRecords.map((item) => Number(String(item.date || '').slice(0,4))).filter(Boolean);
+  const year = years.length ? Math.max(...years) : new Date().getFullYear();
+  weatherYear.textContent = String(year);
+  const months = Array.from({ length:12 }, (_, index) => index + 1);
+  weatherYearGrid.innerHTML = '';
+  let dataMonths = 0;
+  const weatherCounts = new Map();
+  months.forEach((month) => {
+    const monthRecords = journalRecords.filter((item) => {
+      const [y,m] = String(item.date || '').split('-').map(Number);
+      return y === year && m === month;
+    });
+    const weather = dominantValue(monthRecords, 'weather');
+    const mood = dominantValue(monthRecords, 'mood');
+    if (monthRecords.length) dataMonths += 1;
+    if (weather) weatherCounts.set(weather, (weatherCounts.get(weather) || 0) + monthRecords.length);
+    const meta = WEATHER_META[weather] || { icon:'·', label:'暂无记录' };
+    const card = document.createElement('div');
+    card.className = `weather-month ${monthRecords.length ? 'has-data' : ''}`;
+    card.dataset.weather = weather || '';
+    card.innerHTML = `<span>${String(month).padStart(2,'0')} / ${year}</span><div class="weather-icon">${escapeHtml(meta.icon)}</div><strong>${escapeHtml(weather || 'NO LOG')}</strong><small>${monthRecords.length ? `${monthRecords.length} logs · ${mood || meta.label}` : '等待记录'}</small>`;
+    weatherYearGrid.appendChild(card);
+  });
+  const topWeather = [...weatherCounts.entries()].sort((a,b) => b[1] - a[1])[0]?.[0];
+  if (!journalRecords.length) {
+    weatherSummary.textContent = '写下训练日志后，这里会慢慢出现属于这一年的“内心天气”。';
+  } else if (topWeather) {
+    weatherSummary.textContent = `${year} 已经留下 ${journalRecords.filter((item) => String(item.date || '').startsWith(String(year))).length} 篇训练记录，覆盖 ${dataMonths} 个月。出现最多的内心天气是 ${topWeather} · ${WEATHER_META[topWeather]?.label || ''}。`;
+  } else {
+    weatherSummary.textContent = `${year} 已经有训练日志了。下一篇开始选一个 INNER WEATHER，这张气象图就会真正长出来。`;
+  }
+}
+
+function flightLogDateToISO(value) {
+  const [mon, year] = String(value || '').split(/\s+/);
+  const months = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' };
+  return year && months[mon] ? `${year}-${months[mon]}-15` : '';
+}
+function buildConstellationEvents() {
+  const events = [];
+  FLIGHT_LOG.forEach((item, index) => {
+    const date = flightLogDateToISO(item.date);
+    if (date) events.push({ id:`timeline-${index}`, date, type:'memory', title:item.title, note:item.note, target:'log' });
+  });
+  getAllFlights().forEach((item) => events.push({ id:item.id, date:item.date, type:'flight', title:`${item.flight} · ${item.from} → ${item.to}`, note:[item.aircraft,item.operator].filter(Boolean).join(' · '), target:'flight' }));
+  journalRecords.forEach((item) => events.push({ id:item.id, date:item.date, type:'journal', title:item.title || 'Training log', note:[item.stage,item.aircraft].filter(Boolean).join(' · '), target:'journal' }));
+  galleryLocalRecords.forEach((item) => { if (item.date) events.push({ id:item.id, date:item.date, type:'memory', title:item.title || 'Memory', note:item.place || item.note || '', target:'gallery' }); });
+  return events.filter((item) => item.date).sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+}
+function hash01(value) {
+  let h = 2166136261;
+  for (const char of String(value)) { h ^= char.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 10000) / 10000;
+}
+function resizeConstellationCanvas() {
+  if (!constellationCanvas || !constellationStage) return null;
+  const rect = constellationStage.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(320, Math.round(rect.width));
+  const height = Math.max(260, Math.round(rect.height));
+  if (constellationCanvas.width !== Math.round(width * dpr) || constellationCanvas.height !== Math.round(height * dpr)) {
+    constellationCanvas.width = Math.round(width * dpr);
+    constellationCanvas.height = Math.round(height * dpr);
+  }
+  constellationCanvas.style.width = `${width}px`;
+  constellationCanvas.style.height = `${height}px`;
+  const ctx = constellationCanvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return { ctx, width, height, dpr };
+}
+function drawConstellation() {
+  cancelAnimationFrame(constellationRenderFrame);
+  constellationRenderFrame = requestAnimationFrame(() => {
+    const sized = resizeConstellationCanvas();
+    if (!sized) return;
+    const { ctx, width, height } = sized;
+    const events = buildConstellationEvents();
+    constellationCount.textContent = `${String(events.length).padStart(2,'0')} STARS`;
+    constellationEmpty.hidden = events.length > 0;
+    ctx.clearRect(0,0,width,height);
+    const bg = ctx.createRadialGradient(width*.52,height*.46,20,width*.52,height*.46,width*.75);
+    bg.addColorStop(0,'rgba(43,91,119,.12)'); bg.addColorStop(1,'rgba(2,8,14,0)');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,width,height);
+    for (let i=0;i<95;i++) {
+      const x = hash01(`bg-x-${i}`) * width;
+      const y = hash01(`bg-y-${i}`) * height;
+      const r = .35 + hash01(`bg-r-${i}`) * 1.1;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=`rgba(186,211,224,${.10 + hash01(`bg-a-${i}`)*.32})`; ctx.fill();
+    }
+    if (!events.length) { constellationPoints = []; return; }
+    const minTime = new Date(events[0].date).getTime();
+    const maxTime = new Date(events[events.length-1].date).getTime();
+    const span = Math.max(1, maxTime-minTime);
+    constellationPoints = events.map((event,index) => {
+      const t = (new Date(event.date).getTime()-minTime)/span;
+      const x = width*.08 + t*width*.84;
+      const jitter = (hash01(event.id)-.5)*height*.34;
+      const wave = Math.sin(index*1.55 + hash01(event.id)*4.2)*height*.11;
+      const y = height*.50 + jitter + wave;
+      return { ...event, x, y:Math.max(38,Math.min(height-38,y)) };
+    });
+    ctx.lineWidth = 1;
+    for (let i=1;i<constellationPoints.length;i++) {
+      const a=constellationPoints[i-1], b=constellationPoints[i];
+      const grad=ctx.createLinearGradient(a.x,a.y,b.x,b.y); grad.addColorStop(0,'rgba(139,190,216,.12)'); grad.addColorStop(1,'rgba(205,183,143,.22)');
+      ctx.strokeStyle=grad; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+    constellationPoints.forEach((point,index) => {
+      const color = point.type==='flight' ? [157,217,255] : point.type==='journal' ? [205,183,143] : [234,182,200];
+      const radius = point.type==='journal' ? 4.4 : 3.8;
+      const glow=ctx.createRadialGradient(point.x,point.y,0,point.x,point.y,17); glow.addColorStop(0,`rgba(${color.join(',')},.38)`); glow.addColorStop(1,`rgba(${color.join(',')},0)`); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(point.x,point.y,17,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgb(${color.join(',')})`;ctx.beginPath();ctx.arc(point.x,point.y,radius,0,Math.PI*2);ctx.fill();
+      if(index===constellationPoints.length-1){ctx.strokeStyle='rgba(205,183,143,.38)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(point.x,point.y,10,0,Math.PI*2);ctx.stroke();}
+    });
+  });
+}
+function constellationHit(event) {
+  if (!constellationCanvas) return null;
+  const rect = constellationCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left, y = event.clientY - rect.top;
+  return constellationPoints.map((point) => ({ point, d:Math.hypot(point.x-x,point.y-y) })).sort((a,b)=>a.d-b.d)[0]?.d <= 15 ? constellationPoints.map((point) => ({ point, d:Math.hypot(point.x-x,point.y-y) })).sort((a,b)=>a.d-b.d)[0].point : null;
+}
+constellationCanvas?.addEventListener('pointermove', (event) => {
+  const point = constellationHit(event);
+  if (!point) { constellationTooltip.hidden = true; constellationCanvas.style.cursor='crosshair'; return; }
+  constellationCanvas.style.cursor='pointer';
+  constellationTooltip.innerHTML = `<span>${escapeHtml(point.type.toUpperCase())} · ${escapeHtml(prettyDate(point.date))}</span><strong>${escapeHtml(point.title)}</strong><p>${escapeHtml(point.note || '点击查看这条记录')}</p>`;
+  const stageRect = constellationStage.getBoundingClientRect();
+  constellationTooltip.style.left = `${Math.min(stageRect.width-260, Math.max(12,event.clientX-stageRect.left+14))}px`;
+  constellationTooltip.style.top = `${Math.min(stageRect.height-110, Math.max(12,event.clientY-stageRect.top+14))}px`;
+  constellationTooltip.hidden = false;
+});
+constellationCanvas?.addEventListener('pointerleave', () => { constellationTooltip.hidden = true; });
+constellationCanvas?.addEventListener('click', (event) => {
+  const point = constellationHit(event); if (!point) return;
+  if (point.target === 'flight') { $('#atlas')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'}); setTimeout(()=>selectAtlasFlight(point.id), reducedMotion?0:500); }
+  else if (point.target === 'journal') { $('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'}); setTimeout(()=>selectJournal(point.id), reducedMotion?0:500); }
+  else if (point.target === 'gallery') { $('#gallery')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'}); const idx=galleryItems.findIndex((item)=>item.id===point.id); if(idx>=0){galleryActive=idx;updateGalleryDeck();} }
+  else $('#log')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});
+});
+if ('ResizeObserver' in window) new ResizeObserver(drawConstellation).observe(constellationStage || document.body);
+else window.addEventListener('resize', drawConstellation);
+
+function refreshLifeOS() {
+  renderGrowthCockpit();
+  renderBadges();
+  renderInnerWeather();
+  drawConstellation();
+}
+window.HH022_REFRESH_LIFE_OS = refreshLifeOS;
+
 async function initPrivateVault() {
   if (!('indexedDB' in window)) {
     galleryFormError.textContent = '当前浏览器不支持本机照片数据库。请使用最新版 Safari / Chrome。';
@@ -1807,6 +2267,7 @@ async function initPrivateVault() {
     journalDate.value = localISODate();
     renderGallery();
     renderJournalIndex();
+    refreshLifeOS();
   } catch (error) {
     console.warn('Private vault init failed:', error);
   }

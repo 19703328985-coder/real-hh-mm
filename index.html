@@ -7,8 +7,8 @@
   <title>HH022 · 飞往 22 岁</title>
   <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=7.1">
-  <meta name="hh022-version" content="7.1">
+  <link rel="stylesheet" href="style.css?v=8.0">
+  <meta name="hh022-version" content="8.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -55,6 +55,7 @@
       <a href="#atlas">ATLAS</a>
       <a href="#gallery">MEMORIES</a>
       <a href="#journal">JOURNAL</a>
+      <a href="#life-os">LIFE OS</a>
       <a href="#letter">LETTER</a>
     </nav>
     <div class="top-actions">
@@ -308,6 +309,10 @@
               <p id="journal-view-lesson"></p>
             </div>
             <div class="journal-photo-grid" id="journal-view-photos"></div>
+            <div class="journal-voice-playback" id="journal-voice-playback" hidden>
+              <div><span>COCKPIT VOICE RECORDER</span><strong>那一天的声音</strong></div>
+              <audio id="journal-view-audio" controls preload="metadata"></audio>
+            </div>
             <div class="journal-reader-actions">
               <button class="text-btn" id="journal-edit" type="button">EDIT ENTRY</button>
               <button class="text-btn danger" id="journal-delete" type="button">DELETE ENTRY</button>
@@ -323,10 +328,11 @@
         </div>
         <form class="journal-form" id="journal-form">
           <label>DATE<input id="journal-date" type="date" required></label>
-          <label>TRAINING STAGE<select id="journal-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
+          <label>TRAINING STAGE<select id="journal-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>夜航</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
           <label>ACT / AIRCRAFT<input id="journal-aircraft" type="text" maxlength="30" placeholder="C172S / DA40 / 模拟机"></label>
           <label>DURATION (H)<input id="journal-hours" type="number" min="0" max="24" step="0.1" placeholder="1.5"></label>
           <label>MOOD<select id="journal-mood"><option>平静</option><option>兴奋</option><option>紧张</option><option>挫败</option><option>突破</option><option>疲惫</option><option>很有成就感</option></select></label>
+          <label>INNER WEATHER<select id="journal-weather"><option value="CAVOK">CAVOK · 状态很好</option><option value="CLEAR">CLEAR · 清朗</option><option value="CLOUDY">CLOUDY · 有点迷茫</option><option value="CROSSWIND">CROSSWIND · 有挑战</option><option value="TURBULENCE">TURBULENCE · 起伏很大</option><option value="STORM">STORM · 很难熬</option><option value="AFTER RAIN">AFTER RAIN · 熬过去了</option></select></label>
           <label class="wide">TITLE<input id="journal-title" type="text" maxlength="60" placeholder="例如：第一次独立完成稳定进近" required></label>
           <label class="full">TODAY'S NOTE<textarea id="journal-note" maxlength="1600" rows="7" placeholder="今天发生了什么？哪些动作比上次更稳定？当时是什么感受？" required></textarea></label>
           <label class="full">LESSON LEARNED<textarea id="journal-lesson" maxlength="1000" rows="5" placeholder="今天最值得带走的一条经验 / 下次训练前提醒自己的事。"></textarea></label>
@@ -335,6 +341,17 @@
             <span>ADD TRAINING PHOTOS</span>
             <small>可以放当天机坪、飞机、航图或训练结束后的照片；每篇建议不超过 6 张。</small>
           </label>
+          <div class="cvr-recorder full">
+            <div class="cvr-head"><div><span>COCKPIT VOICE RECORDER</span><strong>给这一天留一段声音</strong></div><span id="journal-voice-status">READY</span></div>
+            <div class="cvr-controls">
+              <button class="text-btn" id="journal-voice-record" type="button">● START RECORDING</button>
+              <button class="text-btn" id="journal-voice-stop" type="button" disabled>■ STOP</button>
+              <button class="text-btn danger" id="journal-voice-clear" type="button" hidden>CLEAR VOICE</button>
+              <span id="journal-voice-timer">00:00</span>
+            </div>
+            <audio id="journal-voice-preview" controls hidden preload="metadata"></audio>
+            <p>训练结束后，说 30 秒也可以：今天哪里卡住了、哪里突然明白了、下一次想提醒自己什么。</p>
+          </div>
           <p class="memory-form-error" id="journal-form-error" role="alert"></p>
           <button class="cta gold-btn full" id="journal-save" type="submit">SAVE TRAINING LOG <span>↗</span></button>
         </form>
@@ -342,11 +359,61 @@
       </div>
     </section>
 
+    <section class="section life-os-section" id="life-os">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">06 · FLIGHT LIFE OS</p>
+          <h3>过去有轨迹，<br>现在有仪表，未来有航向。</h3>
+        </div>
+        <p>这里把航班、学飞日志、照片和训练状态真正串在一起。它不是一个“完成度评分”，而是一块会随着真实记录慢慢点亮的私人驾驶舱。</p>
+      </div>
+
+      <div class="life-os-grid">
+        <article class="constellation-card reveal">
+          <div class="os-card-head"><div><span>FLIGHT LIFE CONSTELLATION</span><strong>飞行人生星图</strong></div><span id="constellation-count">00 STARS</span></div>
+          <div class="constellation-stage" id="constellation-stage">
+            <canvas id="life-constellation" aria-label="由航班、训练日志和照片组成的飞行人生星图"></canvas>
+            <div class="constellation-tooltip" id="constellation-tooltip" hidden></div>
+            <div class="constellation-empty" id="constellation-empty">第一条记录，会成为第一颗星。</div>
+          </div>
+          <div class="constellation-legend"><span><i class="star-flight"></i> FLIGHT</span><span><i class="star-journal"></i> TRAINING</span><span><i class="star-memory"></i> MEMORY</span><span>MOVE · TAP A STAR</span></div>
+        </article>
+
+        <article class="cockpit-card reveal delay-1">
+          <div class="os-card-head"><div><span>GROWTH COCKPIT</span><strong>未来机长 · 成长仪表</strong></div><span>MANUAL + LOG EVIDENCE</span></div>
+          <div class="cockpit-progress">
+            <div class="progress-dial" id="growth-dial"><div><strong id="growth-percent">0%</strong><span>JOURNEY</span></div></div>
+            <div class="cockpit-kpis">
+              <div><span>TRAINING HOURS</span><strong id="os-hours">0.0 H</strong></div>
+              <div><span>AIRCRAFT TYPES</span><strong id="os-types">0</strong></div>
+              <div><span>AIRPORTS</span><strong id="os-airports">0</strong></div>
+              <div><span>LOG DAYS</span><strong id="os-logdays">0</strong></div>
+            </div>
+          </div>
+          <div class="milestone-list" id="milestone-list"></div>
+          <p class="os-note">进度只根据你自己勾选的里程碑，或已经存在的训练日志自动点亮；不会虚构“成为机长还有百分之多少”。</p>
+        </article>
+      </div>
+
+      <div class="badge-weather-grid">
+        <article class="badge-card reveal">
+          <div class="os-card-head"><div><span>WINGS & BADGES</span><strong>飞行勋章墙</strong></div><span id="badge-progress">0 / 0 UNLOCKED</span></div>
+          <div class="badge-wall" id="badge-wall"></div>
+        </article>
+
+        <article class="weather-card reveal delay-1">
+          <div class="os-card-head"><div><span>INNER WEATHER</span><strong>年度飞行情绪气象图</strong></div><span id="weather-year">—</span></div>
+          <div class="weather-year-grid" id="weather-year-grid"></div>
+          <div class="weather-summary" id="weather-summary">写下训练日志后，这里会慢慢出现属于这一年的“内心天气”。</div>
+        </article>
+      </div>
+    </section>
+
     <section class="letter-section" id="letter">
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">06 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">07 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -366,7 +433,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">07 · BEFORE TAKEOFF</p>
+          <p class="micro gold">08 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -382,7 +449,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">08 · FLIGHT RECORDER</p>
+        <p class="micro gold">09 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
@@ -416,7 +483,7 @@
 
   <footer class="footer">
     <span>HH022 · PRIVATE FLIGHT ARCHIVE</span>
-    <span>WHEREVER YOU FLY, YOU HAVE A HOME TO RETURN TO.</span>
+    <span>THIS FLIGHT LOG IS STILL BEING WRITTEN.</span>
   </footer>
 
   <div class="takeoff" id="takeoff" hidden aria-live="polite">
@@ -454,7 +521,7 @@
     </div>
   </div>
 
-  <audio id="bgm" src="bgm.mp3?v=7.1" loop preload="metadata"></audio>
-  <script src="app.js?v=7.1"></script>
+  <audio id="bgm" src="bgm.mp3?v=8.0" loop preload="metadata"></audio>
+  <script src="app.js?v=8.0"></script>
 </body>
 </html>
