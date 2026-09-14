@@ -39,6 +39,74 @@ const WINDOW_MEMORIES = [
     text: '不需要多特别的地点。一起散步、靠得很近拍一张照片，就已经足够成为我想收藏很久的普通一天。'
   }
 ];
+
+
+/* ====== V6 · 个人飞行履历 ======
+   把真实航班写在这里并上传 GitHub，所有打开网站的人都会看到。
+   只填机场三字码即可；下方 AIRPORTS 已经内置常见机场坐标。
+
+   示例（不要直接取消注释，除非它确实是真实航班）：
+   { date: '2026-08-18', flight: 'CZ1234', from: 'XUZ', to: 'CAN', note: '第一次去广州' }
+*/
+const PUBLISHED_FLIGHTS = [
+];
+
+const AIRCRAFT_TYPES = [
+  'C172S','C172R','DA40','DA42','SR20','SR22',
+  'A319','A320-200','A320neo','A321-200','A321neo','A330-300','A350-900',
+  'B737-700','B737-800','B737 MAX 8','B747-8','B777-300ER','B787-8','B787-9',
+  'C919','ARJ21','E190','E195-E2','CRJ900'
+];
+
+const AIRPORTS = {
+  XUZ:{city:'徐州',name:'徐州观音国际机场',lat:34.0591,lon:117.5553},
+  NKG:{city:'南京',name:'南京禄口国际机场',lat:31.7420,lon:118.8620},
+  PVG:{city:'上海',name:'上海浦东国际机场',lat:31.1443,lon:121.8083},
+  SHA:{city:'上海',name:'上海虹桥国际机场',lat:31.1979,lon:121.3363},
+  PEK:{city:'北京',name:'北京首都国际机场',lat:40.0799,lon:116.6031},
+  PKX:{city:'北京',name:'北京大兴国际机场',lat:39.5098,lon:116.4105},
+  CAN:{city:'广州',name:'广州白云国际机场',lat:23.3924,lon:113.2988},
+  SZX:{city:'深圳',name:'深圳宝安国际机场',lat:22.6393,lon:113.8107},
+  HGH:{city:'杭州',name:'杭州萧山国际机场',lat:30.2295,lon:120.4345},
+  WUX:{city:'无锡',name:'苏南硕放国际机场',lat:31.4944,lon:120.4294},
+  YTY:{city:'扬州',name:'扬州泰州国际机场',lat:32.5617,lon:119.7150},
+  NTG:{city:'南通',name:'南通兴东国际机场',lat:32.0708,lon:120.9760},
+  YNZ:{city:'盐城',name:'盐城南洋国际机场',lat:33.4258,lon:120.2031},
+  LYG:{city:'连云港',name:'连云港花果山机场',lat:34.5717,lon:118.8736},
+  CTU:{city:'成都',name:'成都双流国际机场',lat:30.5785,lon:103.9471},
+  TFU:{city:'成都',name:'成都天府国际机场',lat:30.3125,lon:104.4410},
+  CKG:{city:'重庆',name:'重庆江北国际机场',lat:29.7192,lon:106.6417},
+  XIY:{city:'西安',name:'西安咸阳国际机场',lat:34.4471,lon:108.7516},
+  WUH:{city:'武汉',name:'武汉天河国际机场',lat:30.7838,lon:114.2081},
+  CSX:{city:'长沙',name:'长沙黄花国际机场',lat:28.1892,lon:113.2200},
+  KMG:{city:'昆明',name:'昆明长水国际机场',lat:25.1019,lon:102.9292},
+  TAO:{city:'青岛',name:'青岛胶东国际机场',lat:36.3619,lon:120.0882},
+  TNA:{city:'济南',name:'济南遥墙国际机场',lat:36.8572,lon:117.2160},
+  CGO:{city:'郑州',name:'郑州新郑国际机场',lat:34.5197,lon:113.8409},
+  TSN:{city:'天津',name:'天津滨海国际机场',lat:39.1244,lon:117.3462},
+  DLC:{city:'大连',name:'大连周水子国际机场',lat:38.9657,lon:121.5386},
+  SHE:{city:'沈阳',name:'沈阳桃仙国际机场',lat:41.6398,lon:123.4834},
+  HRB:{city:'哈尔滨',name:'哈尔滨太平国际机场',lat:45.6234,lon:126.2503},
+  XMN:{city:'厦门',name:'厦门高崎国际机场',lat:24.5440,lon:118.1277},
+  FOC:{city:'福州',name:'福州长乐国际机场',lat:25.9351,lon:119.6633},
+  HAK:{city:'海口',name:'海口美兰国际机场',lat:19.9349,lon:110.4590},
+  SYX:{city:'三亚',name:'三亚凤凰国际机场',lat:18.3029,lon:109.4120},
+  NNG:{city:'南宁',name:'南宁吴圩国际机场',lat:22.6083,lon:108.1724},
+  KWE:{city:'贵阳',name:'贵阳龙洞堡国际机场',lat:26.5385,lon:106.8007},
+  LHW:{city:'兰州',name:'兰州中川国际机场',lat:36.5152,lon:103.6208},
+  URC:{city:'乌鲁木齐',name:'乌鲁木齐天山国际机场',lat:43.9071,lon:87.4742},
+  ZUH:{city:'珠海',name:'珠海金湾机场',lat:22.0064,lon:113.3760},
+  HKG:{city:'香港',name:'香港国际机场',lat:22.3080,lon:113.9185},
+  MFM:{city:'澳门',name:'澳门国际机场',lat:22.1496,lon:113.5915},
+  TPE:{city:'台北',name:'台湾桃园国际机场',lat:25.0797,lon:121.2342},
+  NRT:{city:'东京',name:'成田国际机场',lat:35.7720,lon:140.3929},
+  HND:{city:'东京',name:'东京羽田机场',lat:35.5494,lon:139.7798},
+  KIX:{city:'大阪',name:'关西国际机场',lat:34.4347,lon:135.2441},
+  ICN:{city:'首尔',name:'仁川国际机场',lat:37.4602,lon:126.4407},
+  SIN:{city:'新加坡',name:'新加坡樟宜机场',lat:1.3644,lon:103.9915},
+  BKK:{city:'曼谷',name:'素万那普国际机场',lat:13.6900,lon:100.7501}
+};
+
 /* ====== 可编辑区结束 ====== */
 
 const boarding = $('#boarding');
@@ -348,3 +416,722 @@ editWish.addEventListener('click', () => {
 });
 
 renderStoredWish();
+
+/* =========================================================
+   V5 · FLIGHT ATLAS
+   - 真实航班：PUBLISHED_FLIGHTS（上方，可发布给所有人）
+   - 临时/个人航班：当前浏览器 localStorage
+   - 3D 地球：Three.js CDN，纯静态 Pages 可直接运行
+   ========================================================= */
+const ATLAS_LOCAL_KEY = 'hh022-personal-flight-logbook-v2';
+const LEGACY_ATLAS_LOCAL_KEY = 'hh022-local-flights-v1';
+const flightList = $('#flight-list');
+const manifestEmpty = $('#manifest-empty');
+const manifestCount = $('#manifest-count');
+const statFlights = $('#stat-flights');
+const statAirports = $('#stat-airports');
+const statAircraft = $('#stat-aircraft');
+const statDistance = $('#stat-distance');
+const statLatest = $('#stat-latest');
+const airportList = $('#airport-list');
+const aircraftList = $('#aircraft-list');
+const fleetSummary = $('#fleet-summary');
+const fleetModels = $('#fleet-models');
+const addFlightToggle = $('#add-flight-toggle');
+const flightFormShell = $('#flight-form-shell');
+const closeFlightForm = $('#close-flight-form');
+const flightForm = $('#flight-form');
+const flightDate = $('#flight-date');
+const flightNumber = $('#flight-number');
+const flightFrom = $('#flight-from');
+const flightTo = $('#flight-to');
+const flightOperator = $('#flight-operator');
+const flightAircraft = $('#flight-aircraft');
+const flightRegistration = $('#flight-registration');
+const flightRole = $('#flight-role');
+const flightNote = $('#flight-note');
+const flightFormHeading = $('#flight-form-heading');
+const saveFlightBtn = $('#save-flight-btn');
+const flightFormError = $('#flight-form-error');
+const exportFlights = $('#export-flights');
+const importFlights = $('#import-flights');
+const importFlightsFile = $('#import-flights-file');
+const clearLocalFlights = $('#clear-local-flights');
+const globeReset = $('#globe-reset');
+const globeEmpty = $('#globe-empty');
+
+let atlasEngine = null;
+let pendingAtlasFocus = null;
+let localFlights = readLocalFlights();
+let editingFlightId = null;
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'
+  }[char]));
+}
+
+function readLocalFlights() {
+  try {
+    const current = localStorage.getItem(ATLAS_LOCAL_KEY);
+    const legacy = localStorage.getItem(LEGACY_ATLAS_LOCAL_KEY);
+    const parsed = JSON.parse(current || legacy || '[]');
+    const records = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.records) ? parsed.records : []);
+    if (!current && records.length) localStorage.setItem(ATLAS_LOCAL_KEY, JSON.stringify(records));
+    return records;
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalFlights() {
+  localStorage.setItem(ATLAS_LOCAL_KEY, JSON.stringify(localFlights));
+}
+
+function normalizeCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+}
+
+function normalizeFlight(record, source = 'published', index = 0) {
+  const from = normalizeCode(record.from);
+  const to = normalizeCode(record.to);
+  const fromAirport = AIRPORTS[from];
+  const toAirport = AIRPORTS[to];
+  if (!fromAirport || !toAirport || from === to) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(record.date || '') ? record.date : '2026-09-15';
+  const flight = String(record.flight || 'FLIGHT').trim().slice(0, 18) || 'FLIGHT';
+  return {
+    id: record.id || `${source}-${date}-${flight}-${from}-${to}-${index}`.replace(/\s+/g,'-'),
+    date,
+    flight,
+    from,
+    to,
+    operator: String(record.operator || '').trim().slice(0, 30),
+    aircraft: String(record.aircraft || 'UNKNOWN').trim().toUpperCase().slice(0, 30) || 'UNKNOWN',
+    registration: String(record.registration || '').trim().toUpperCase().slice(0, 16),
+    role: String(record.role || '').trim().slice(0, 24),
+    note: String(record.note || '').trim().slice(0, 80),
+    source,
+    fromAirport,
+    toAirport
+  };
+}
+
+function getAllFlights() {
+  const published = PUBLISHED_FLIGHTS.map((item, index) => normalizeFlight(item, 'published', index)).filter(Boolean);
+  const local = localFlights.map((item, index) => normalizeFlight(item, 'local', index)).filter(Boolean);
+  return [...published, ...local].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const rad = (deg) => deg * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const lat1 = rad(a.lat);
+  const lat2 = rad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function displayFlightDate(date) {
+  const [year, month, day] = date.split('-');
+  return `${year} · ${month} · ${day}`;
+}
+
+function compactLatest(date) {
+  if (!date) return '—';
+  const [year, month, day] = date.split('-');
+  return `${year}.${month}.${day}`;
+}
+
+function renderAirportDatalist() {
+  if (!airportList) return;
+  airportList.innerHTML = Object.entries(AIRPORTS)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([code, airport]) => `<option value="${code}">${escapeHtml(airport.city)} · ${escapeHtml(airport.name)}</option>`)
+    .join('');
+}
+
+function renderAircraftDatalist() {
+  if (!aircraftList) return;
+  aircraftList.innerHTML = AIRCRAFT_TYPES.map((type) => `<option value="${escapeHtml(type)}"></option>`).join('');
+}
+
+function renderFleet(records) {
+  const counts = new Map();
+  records.forEach((record) => {
+    const type = record.aircraft || 'UNKNOWN';
+    counts.set(type, (counts.get(type) || 0) + 1);
+  });
+  statAircraft.textContent = counts.size;
+  if (!fleetSummary || !fleetModels) return;
+  fleetSummary.hidden = counts.size === 0;
+  fleetModels.innerHTML = [...counts.entries()]
+    .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([type, count]) => `<button class="fleet-model" type="button" data-aircraft="${escapeHtml(type)}"><span>${escapeHtml(type)}</span><strong>${String(count).padStart(2,'0')}</strong><small>FLIGHT${count === 1 ? '' : 'S'}</small></button>`)
+    .join('');
+  $$('.fleet-model', fleetModels).forEach((button) => {
+    button.addEventListener('click', () => {
+      const aircraft = button.dataset.aircraft;
+      const first = records.find((record) => record.aircraft === aircraft);
+      if (first) selectAtlasFlight(first.id);
+    });
+  });
+}
+
+function renderAtlas() {
+  if (!flightList) return;
+  const records = getAllFlights();
+  manifestCount.textContent = `${String(records.length).padStart(2, '0')} RECORD${records.length === 1 ? '' : 'S'}`;
+  manifestEmpty.hidden = records.length > 0;
+  globeEmpty.hidden = records.length > 0;
+
+  const airportCodes = new Set();
+  let totalKm = 0;
+  records.forEach((record) => {
+    airportCodes.add(record.from);
+    airportCodes.add(record.to);
+    record.distanceKm = Math.round(haversineKm(record.fromAirport, record.toAirport));
+    totalKm += record.distanceKm;
+  });
+  statFlights.textContent = records.length;
+  statAirports.textContent = airportCodes.size;
+  renderFleet(records);
+  statDistance.textContent = `${Math.round(totalKm).toLocaleString('en-US')} KM`;
+  statLatest.textContent = compactLatest(records[0]?.date);
+
+  flightList.innerHTML = '';
+  records.forEach((record, index) => {
+    const card = document.createElement('article');
+    card.className = `flight-card ${record.source === 'local' ? 'local' : ''}`;
+    card.dataset.flightId = record.id;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `${record.flight} ${record.from} 到 ${record.to}`);
+    card.innerHTML = `
+      <div class="flight-card-top">
+        <time>${displayFlightDate(record.date)}</time>
+        <span class="flight-card-no">${escapeHtml(record.flight)}</span>
+      </div>
+      <div class="flight-route">
+        <strong>${record.from}</strong><i></i><strong>${record.to}</strong>
+      </div>
+      <div class="flight-cities"><span>${escapeHtml(record.fromAirport.city)}</span><span>${escapeHtml(record.toAirport.city)}</span></div>
+      <div class="aircraft-strip">
+        <strong>${escapeHtml(record.aircraft)}</strong>
+        ${record.registration ? `<span>${escapeHtml(record.registration)}</span>` : ''}
+        ${record.operator ? `<span>${escapeHtml(record.operator)}</span>` : ''}
+        ${record.role ? `<span>${escapeHtml(record.role)}</span>` : ''}
+      </div>
+      <div class="flight-meta">
+        <span class="flight-note">${escapeHtml(record.note || 'PERSONAL FLIGHT LOG')}</span>
+        <span>${record.distanceKm.toLocaleString('en-US')} KM</span>
+      </div>
+      ${record.source === 'local' ? `<div class="flight-card-actions"><button type="button" data-action="edit">EDIT</button><button type="button" data-action="delete">DELETE</button></div>` : ''}`;
+    const activate = () => selectAtlasFlight(record.id, card);
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate();
+      }
+    });
+    if (record.source === 'local') {
+      $('[data-action="edit"]', card)?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        beginEditFlight(record.id);
+      });
+      $('[data-action="delete"]', card)?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        deleteFlight(record.id);
+      });
+    }
+    flightList.appendChild(card);
+    if (index === 0 && records.length) card.classList.add('active');
+  });
+
+  if (atlasEngine) {
+    atlasEngine.setFlights(records);
+    if (records[0]) atlasEngine.focusFlight(records[0].id, false);
+  }
+}
+
+function selectAtlasFlight(id, card = null) {
+  $$('.flight-card', flightList).forEach((item) => item.classList.toggle('active', item.dataset.flightId === id));
+  if (!card) card = $(`.flight-card[data-flight-id="${CSS.escape(id)}"]`, flightList);
+  card?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
+  if (atlasEngine) atlasEngine.focusFlight(id, true);
+  else pendingAtlasFocus = id;
+}
+
+renderAirportDatalist();
+renderAircraftDatalist();
+renderAtlas();
+if (flightDate && !flightDate.value) flightDate.value = new Date().toISOString().slice(0, 10);
+
+function resetFlightForm() {
+  editingFlightId = null;
+  flightForm.reset();
+  flightDate.value = new Date().toISOString().slice(0, 10);
+  flightFormError.textContent = '';
+  flightFormHeading.textContent = '记录一程航班';
+  saveFlightBtn.innerHTML = 'SAVE TO LOGBOOK <span>↗</span>';
+}
+
+function openFlightForm() {
+  flightFormShell.hidden = false;
+  addFlightToggle.hidden = true;
+  setTimeout(() => flightNumber.focus(), 60);
+}
+
+function beginEditFlight(id) {
+  const record = localFlights.find((item) => item.id === id);
+  if (!record) return;
+  editingFlightId = id;
+  flightDate.value = record.date || '';
+  flightNumber.value = record.flight || '';
+  flightFrom.value = record.from || '';
+  flightTo.value = record.to || '';
+  flightOperator.value = record.operator || '';
+  flightAircraft.value = record.aircraft || '';
+  flightRegistration.value = record.registration || '';
+  flightRole.value = record.role || '';
+  flightNote.value = record.note || '';
+  flightFormHeading.textContent = '修改这一程';
+  saveFlightBtn.innerHTML = 'UPDATE FLIGHT <span>↗</span>';
+  openFlightForm();
+}
+
+function deleteFlight(id) {
+  const record = localFlights.find((item) => item.id === id);
+  if (!record) return;
+  const ok = window.confirm(`删除 ${record.flight || '这条航班'} 的记录吗？`);
+  if (!ok) return;
+  localFlights = localFlights.filter((item) => item.id !== id);
+  saveLocalFlights();
+  renderAtlas();
+}
+
+addFlightToggle?.addEventListener('click', () => {
+  resetFlightForm();
+  openFlightForm();
+});
+closeFlightForm?.addEventListener('click', () => {
+  flightFormShell.hidden = true;
+  addFlightToggle.hidden = false;
+  resetFlightForm();
+});
+
+flightFrom?.addEventListener('input', () => { flightFrom.value = flightFrom.value.toUpperCase(); });
+flightTo?.addEventListener('input', () => { flightTo.value = flightTo.value.toUpperCase(); });
+flightNumber?.addEventListener('input', () => { flightNumber.value = flightNumber.value.toUpperCase(); });
+flightAircraft?.addEventListener('input', () => { flightAircraft.value = flightAircraft.value.toUpperCase(); });
+flightRegistration?.addEventListener('input', () => { flightRegistration.value = flightRegistration.value.toUpperCase(); });
+
+flightForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const from = normalizeCode(flightFrom.value);
+  const to = normalizeCode(flightTo.value);
+  if (!AIRPORTS[from] || !AIRPORTS[to]) {
+    flightFormError.textContent = '请选择列表中已经收录的机场三字码。';
+    return;
+  }
+  if (from === to) {
+    flightFormError.textContent = '起点和终点不能相同。';
+    return;
+  }
+  const record = {
+    id: editingFlightId || `local-${Date.now()}`,
+    date: flightDate.value,
+    flight: flightNumber.value.trim().toUpperCase(),
+    from,
+    to,
+    operator: flightOperator.value.trim(),
+    aircraft: flightAircraft.value.trim().toUpperCase(),
+    registration: flightRegistration.value.trim().toUpperCase(),
+    role: flightRole.value.trim(),
+    note: flightNote.value.trim()
+  };
+  if (!record.date || !record.flight || !record.aircraft) {
+    flightFormError.textContent = '日期、航班号和飞机型号需要填写完整。';
+    return;
+  }
+  if (editingFlightId) {
+    localFlights = localFlights.map((item) => item.id === editingFlightId ? record : item);
+  } else {
+    localFlights.push(record);
+  }
+  saveLocalFlights();
+  const savedId = record.id;
+  resetFlightForm();
+  flightFormShell.hidden = true;
+  addFlightToggle.hidden = false;
+  renderAtlas();
+  requestAnimationFrame(() => selectAtlasFlight(savedId));
+});
+
+clearLocalFlights?.addEventListener('click', () => {
+  if (!localFlights.length) return;
+  const ok = window.confirm('只会清除这台设备里新增的航班，不会影响网站源码中的永久航班。确定清除吗？');
+  if (!ok) return;
+  localFlights = [];
+  saveLocalFlights();
+  renderAtlas();
+});
+
+exportFlights?.addEventListener('click', () => {
+  const archive = {
+    format: 'HH022 PERSONAL FLIGHT LOGBOOK',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    records: localFlights
+  };
+  const payload = JSON.stringify(archive, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `haohao-flight-logbook-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+});
+
+importFlights?.addEventListener('click', () => importFlightsFile?.click());
+importFlightsFile?.addEventListener('change', async () => {
+  const file = importFlightsFile.files?.[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const incoming = Array.isArray(parsed) ? parsed : parsed.records;
+    if (!Array.isArray(incoming)) throw new Error('invalid');
+    const cleaned = incoming
+      .map((item, index) => ({ ...item, id: item.id || `import-${Date.now()}-${index}` }))
+      .filter((item) => AIRPORTS[normalizeCode(item.from)] && AIRPORTS[normalizeCode(item.to)] && item.flight && item.date);
+    if (!cleaned.length && incoming.length) throw new Error('empty');
+    const mode = localFlights.length ? window.confirm('点击“确定”合并导入；点击“取消”则用备份完全替换当前记录。') : true;
+    localFlights = (mode === false) ? cleaned : [...localFlights, ...cleaned];
+    const unique = new Map();
+    localFlights.forEach((item) => unique.set(item.id || `${item.date}-${item.flight}-${item.from}-${item.to}`, item));
+    localFlights = [...unique.values()];
+    saveLocalFlights();
+    renderAtlas();
+    window.alert(`已导入 ${cleaned.length} 条飞行记录。`);
+  } catch {
+    window.alert('这个 JSON 文件不是可识别的飞行档案。');
+  } finally {
+    importFlightsFile.value = '';
+  }
+});
+
+/* ---------- THREE.JS GLOBE ---------- */
+async function bootFlightGlobe() {
+  const canvas = $('#flight-globe');
+  const stage = $('#globe-stage');
+  const loading = $('#globe-loading');
+  const tooltip = $('#globe-tooltip');
+  if (!canvas || !stage) return;
+
+  let THREE;
+  try {
+    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js');
+  } catch (error) {
+    console.warn('Three.js failed to load:', error);
+    loading.innerHTML = '<span>3D ENGINE UNAVAILABLE · REFRESH TO RETRY</span>';
+    return;
+  }
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0, 3.75);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+
+  const world = new THREE.Group();
+  scene.add(world);
+  const routesGroup = new THREE.Group();
+  const markersGroup = new THREE.Group();
+  world.add(routesGroup, markersGroup);
+
+  const RADIUS = 1.12;
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(RADIUS, 64, 64),
+    new THREE.MeshPhongMaterial({ color: 0x071c2a, emissive: 0x02080d, shininess: 24, specular: 0x173b4f, transparent: true, opacity: 0.97 })
+  );
+  world.add(globe);
+
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(RADIUS * 1.055, 64, 64),
+    new THREE.MeshBasicMaterial({ color: 0x6cb5d8, transparent: true, opacity: 0.055, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+  );
+  world.add(atmosphere);
+
+  const ambient = new THREE.AmbientLight(0x7aa8c0, 0.72);
+  const key = new THREE.DirectionalLight(0xe8d8b8, 1.55);
+  key.position.set(-2.4, 1.6, 3.2);
+  const rim = new THREE.DirectionalLight(0x3d83aa, 0.9);
+  rim.position.set(2.2, -1.0, -2.5);
+  scene.add(ambient, key, rim);
+
+  const gridMaterial = new THREE.LineBasicMaterial({ color: 0x45687b, transparent: true, opacity: 0.22 });
+  const grid = new THREE.Group();
+  const latLonToVector = (lat, lon, radius = RADIUS) => {
+    const phi = (90 - lat) * Math.PI / 180;
+    const theta = (lon + 180) * Math.PI / 180;
+    return new THREE.Vector3(
+      -radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.sin(theta)
+    );
+  };
+  for (let lat = -60; lat <= 60; lat += 20) {
+    const points = [];
+    for (let lon = -180; lon <= 180; lon += 4) points.push(latLonToVector(lat, lon, RADIUS * 1.003));
+    grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), gridMaterial));
+  }
+  for (let lon = -180; lon < 180; lon += 30) {
+    const points = [];
+    for (let lat = -88; lat <= 88; lat += 3) points.push(latLonToVector(lat, lon, RADIUS * 1.003));
+    grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), gridMaterial));
+  }
+  world.add(grid);
+
+  const starGeometry = new THREE.BufferGeometry();
+  const starCount = window.innerWidth < 650 ? 320 : 720;
+  const starPositions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    const radius = 5 + Math.random() * 7;
+    const theta = Math.random() * Math.PI * 2;
+    const u = Math.random() * 2 - 1;
+    const s = Math.sqrt(1 - u * u);
+    starPositions[i * 3] = radius * s * Math.cos(theta);
+    starPositions[i * 3 + 1] = radius * u;
+    starPositions[i * 3 + 2] = radius * s * Math.sin(theta);
+  }
+  starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xa9c1cf, size: 0.012, transparent: true, opacity: 0.48, sizeAttenuation: true })));
+
+  const markerMeshes = [];
+  const routeObjects = new Map();
+  const pulses = [];
+  const gold = 0xcdb78f;
+  const blue = 0x75b8dc;
+
+  function disposeGroup(group) {
+    while (group.children.length) {
+      const child = group.children.pop();
+      child.geometry?.dispose?.();
+      if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose?.());
+      else child.material?.dispose?.();
+      child.children?.forEach?.((sub) => {
+        sub.geometry?.dispose?.();
+        sub.material?.dispose?.();
+      });
+    }
+  }
+
+  function makeArc(record) {
+    const start = latLonToVector(record.fromAirport.lat, record.fromAirport.lon, RADIUS * 1.015);
+    const end = latLonToVector(record.toAirport.lat, record.toAirport.lon, RADIUS * 1.015);
+    let midDir = start.clone().add(end);
+    if (midDir.lengthSq() < 0.01) midDir = start.clone().cross(new THREE.Vector3(0,1,0));
+    midDir.normalize();
+    const centralAngle = start.clone().normalize().angleTo(end.clone().normalize());
+    const lift = 0.18 + Math.min(0.38, centralAngle * 0.23);
+    const control = midDir.multiplyScalar(RADIUS + lift);
+    const curve = new THREE.QuadraticBezierCurve3(start, control, end);
+    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(72));
+    const material = new THREE.LineBasicMaterial({ color: blue, transparent: true, opacity: 0.58 });
+    const line = new THREE.Line(geometry, material);
+    line.userData = { flightId: record.id, record, curve };
+    routesGroup.add(line);
+
+    const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 12), new THREE.MeshBasicMaterial({ color: gold }));
+    pulse.userData = { curve, speed: 0.045 + Math.random() * 0.025, phase: Math.random() };
+    routesGroup.add(pulse);
+    pulses.push(pulse);
+    routeObjects.set(record.id, line);
+  }
+
+  function makeMarker(code, airport) {
+    const pos = latLonToVector(airport.lat, airport.lon, RADIUS * 1.018);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.025, 18, 18), new THREE.MeshBasicMaterial({ color: gold }));
+    core.position.copy(pos);
+    core.userData = { type: 'airport', code, airport };
+    markersGroup.add(core);
+    markerMeshes.push(core);
+
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.034, 0.052, 28), new THREE.MeshBasicMaterial({ color: gold, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+    halo.position.copy(pos.clone().multiplyScalar(1.005));
+    halo.lookAt(new THREE.Vector3(0,0,0));
+    markersGroup.add(halo);
+  }
+
+  function setFlights(records) {
+    disposeGroup(routesGroup);
+    disposeGroup(markersGroup);
+    markerMeshes.length = 0;
+    pulses.length = 0;
+    routeObjects.clear();
+    const airports = new Map();
+    records.forEach((record) => {
+      airports.set(record.from, record.fromAirport);
+      airports.set(record.to, record.toAirport);
+      makeArc(record);
+    });
+    airports.forEach((airport, code) => makeMarker(code, airport));
+  }
+
+  let focusAnimation = null;
+  const front = new THREE.Vector3(0, 0, 1);
+  function focusFlight(id, animate = true) {
+    const line = routeObjects.get(id);
+    if (!line) return;
+    routeObjects.forEach((routeLine, routeId) => {
+      routeLine.material.color.setHex(routeId === id ? gold : blue);
+      routeLine.material.opacity = routeId === id ? 0.95 : 0.34;
+    });
+    const record = line.userData.record;
+    const a = latLonToVector(record.fromAirport.lat, record.fromAirport.lon, 1).normalize();
+    const b = latLonToVector(record.toAirport.lat, record.toAirport.lon, 1).normalize();
+    const mid = a.add(b).normalize();
+    const target = new THREE.Quaternion().setFromUnitVectors(mid, front);
+    if (!animate || reducedMotion) {
+      world.quaternion.copy(target);
+      focusAnimation = null;
+    } else {
+      focusAnimation = { from: world.quaternion.clone(), to: target, start: performance.now(), duration: 900 };
+    }
+  }
+
+  function resetView() {
+    const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, -0.72, 0));
+    focusAnimation = reducedMotion ? null : { from: world.quaternion.clone(), to: target, start: performance.now(), duration: 850 };
+    if (reducedMotion) world.quaternion.copy(target);
+    camera.position.z = 3.75;
+    routeObjects.forEach((routeLine) => {
+      routeLine.material.color.setHex(blue);
+      routeLine.material.opacity = 0.58;
+    });
+  }
+
+  let isDragging = false;
+  let moved = false;
+  let lastX = 0;
+  let lastY = 0;
+  let lastInteraction = performance.now();
+  canvas.addEventListener('pointerdown', (event) => {
+    isDragging = true;
+    moved = false;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    lastInteraction = performance.now();
+    focusAnimation = null;
+    canvas.setPointerCapture?.(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (isDragging) {
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), dx * 0.006);
+      const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), dy * 0.0045);
+      world.quaternion.premultiply(qY).premultiply(qX).normalize();
+      lastX = event.clientX;
+      lastY = event.clientY;
+      lastInteraction = performance.now();
+    }
+    updateTooltip(event);
+  });
+  const endDrag = (event) => {
+    isDragging = false;
+    canvas.releasePointerCapture?.(event.pointerId);
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', () => {
+    if (!isDragging) tooltip.hidden = true;
+  });
+  stage.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    camera.position.z = Math.max(2.65, Math.min(5.0, camera.position.z + event.deltaY * 0.0022));
+    lastInteraction = performance.now();
+  }, { passive: false });
+
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  function updateTooltip(event) {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(markerMeshes, false);
+    if (!hits.length || moved) {
+      tooltip.hidden = true;
+      return;
+    }
+    const data = hits[0].object.userData;
+    tooltip.innerHTML = `<b>${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.airport.name)}</span>`;
+    tooltip.style.left = `${event.clientX - rect.left}px`;
+    tooltip.style.top = `${event.clientY - rect.top}px`;
+    tooltip.hidden = false;
+  }
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+  }
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(stage);
+  resize();
+
+  world.rotation.set(-0.12, -0.72, 0);
+  let last = performance.now();
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (focusAnimation) {
+      const t = Math.min(1, (now - focusAnimation.start) / focusAnimation.duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      world.quaternion.slerpQuaternions(focusAnimation.from, focusAnimation.to, eased);
+      if (t >= 1) focusAnimation = null;
+    } else if (!isDragging && !reducedMotion && now - lastInteraction > 1600) {
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), dt * 0.065);
+      world.quaternion.premultiply(q).normalize();
+    }
+    pulses.forEach((pulse) => {
+      pulse.userData.phase = (pulse.userData.phase + dt * pulse.userData.speed) % 1;
+      pulse.position.copy(pulse.userData.curve.getPoint(pulse.userData.phase));
+    });
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(animate);
+
+  atlasEngine = { setFlights, focusFlight, resetView };
+  setFlights(getAllFlights());
+  const first = pendingAtlasFocus || getAllFlights()[0]?.id;
+  if (first) focusFlight(first, false);
+  pendingAtlasFocus = null;
+  loading.classList.add('ready');
+  setTimeout(() => { loading.hidden = true; }, 500);
+  globeReset?.addEventListener('click', resetView);
+}
+
+/* Lazy-load 3D only when the atlas approaches the viewport. */
+const atlasSection = $('#atlas');
+if (atlasSection) {
+  const atlasBootObserver = new IntersectionObserver((entries, observer) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      bootFlightGlobe();
+      observer.disconnect();
+    }
+  }, { rootMargin: '500px 0px' });
+  atlasBootObserver.observe(atlasSection);
+}

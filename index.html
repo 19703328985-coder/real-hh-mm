@@ -51,6 +51,7 @@
     <a class="wordmark" href="#hero" aria-label="回到首页">HH022 <span>PRIVATE FLIGHT</span></a>
     <nav aria-label="页面导航">
       <a href="#log">LOG</a>
+      <a href="#atlas">ATLAS</a>
       <a href="#windows">WINDOWS</a>
       <a href="#letter">LETTER</a>
       <a href="#wish">WISH</a>
@@ -95,10 +96,102 @@
       </div>
     </section>
 
+    <section class="section atlas-section" id="atlas">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">02 · FLIGHT ATLAS</p>
+          <h3>把飞过的地方，<br>留在一颗地球上。</h3>
+        </div>
+        <p>这一次不再替你预先写航班。以后每坐一程，你都可以自己把日期、航班号、起终点、航空公司、机型和注册号记下来。路线会自动落在 3D 地球上，慢慢变成只属于你的飞行履历。</p>
+      </div>
+
+      <div class="atlas-stats reveal" id="atlas-stats">
+        <div><span>FLIGHTS</span><strong id="stat-flights">0</strong></div>
+        <div><span>AIRPORTS</span><strong id="stat-airports">0</strong></div>
+        <div><span>AIRCRAFT TYPES</span><strong id="stat-aircraft">0</strong></div>
+        <div><span>DISTANCE</span><strong id="stat-distance">0 KM</strong></div>
+        <div><span>LATEST</span><strong id="stat-latest">—</strong></div>
+      </div>
+
+      <div class="fleet-summary reveal" id="fleet-summary" hidden>
+        <div class="fleet-summary-head"><span>AIRCRAFT LOGBOOK</span><strong>坐过的机型</strong></div>
+        <div class="fleet-models" id="fleet-models"></div>
+      </div>
+
+      <div class="atlas-layout">
+        <div class="globe-card reveal">
+          <div class="globe-topline">
+            <div>
+              <span>HH022 · WORLD FLIGHT ARCHIVE</span>
+              <strong>LIVE 3D GLOBE</strong>
+            </div>
+            <button class="globe-reset" id="globe-reset" type="button">RESET VIEW</button>
+          </div>
+          <div class="globe-stage" id="globe-stage">
+            <canvas id="flight-globe" aria-label="可交互的三维飞行航迹地球"></canvas>
+            <div class="globe-loading" id="globe-loading"><i></i><span>INITIALIZING GLOBE</span></div>
+            <div class="globe-empty" id="globe-empty" hidden>
+              <span>NO FLIGHTS LOGGED</span>
+              <strong>第一条航线，会从这里开始发光。</strong>
+            </div>
+            <div class="globe-tooltip" id="globe-tooltip" hidden></div>
+            <div class="globe-compass" aria-hidden="true"><span>N</span><i></i></div>
+          </div>
+          <div class="globe-legend">
+            <span><i class="legend-dot"></i> VISITED AIRPORT</span>
+            <span><i class="legend-line"></i> FLIGHT ROUTE</span>
+            <span class="globe-hint">DRAG TO ROTATE · SCROLL TO ZOOM</span>
+          </div>
+        </div>
+
+        <aside class="manifest reveal delay-1">
+          <div class="manifest-head">
+            <div><span>FLIGHT MANIFEST</span><strong>航班档案</strong></div>
+            <span id="manifest-count">00 RECORDS</span>
+          </div>
+          <div class="flight-list" id="flight-list"></div>
+          <div class="manifest-empty" id="manifest-empty">
+            <strong>你的飞行履历，还在等待第一程。</strong>
+            <p>从下一次出发开始，自己记下航班和机型。这个页面会替你统计去过的机场、飞行距离，以及坐过的每一种飞机。</p>
+          </div>
+          <button class="record-flight-btn" id="add-flight-toggle" type="button"><span>＋</span> RECORD A FLIGHT</button>
+
+          <div class="flight-form-shell" id="flight-form-shell" hidden>
+            <div class="flight-form-title">
+              <div><span>PERSONAL LOGBOOK</span><strong id="flight-form-heading">记录一程航班</strong></div>
+              <button id="close-flight-form" type="button" aria-label="关闭">×</button>
+            </div>
+            <form id="flight-form" class="flight-form">
+              <label>DATE<input id="flight-date" name="date" type="date" required></label>
+              <label>FLIGHT NO.<input id="flight-number" name="flight" type="text" maxlength="18" placeholder="CZ1234 / TRAINING 01" required></label>
+              <label>FROM<input id="flight-from" name="from" list="airport-list" maxlength="4" placeholder="XUZ" autocomplete="off" required></label>
+              <label>TO<input id="flight-to" name="to" list="airport-list" maxlength="4" placeholder="NKG" autocomplete="off" required></label>
+              <label>OPERATOR / AIRLINE<input id="flight-operator" name="operator" type="text" maxlength="30" placeholder="China Southern / 航校（可选）"></label>
+              <label>AIRCRAFT TYPE<input id="flight-aircraft" name="aircraft" list="aircraft-list" type="text" maxlength="30" placeholder="B737-800 / C172S" required></label>
+              <label>REGISTRATION<input id="flight-registration" name="registration" type="text" maxlength="16" placeholder="B-7932（可选）"></label>
+              <label>SEAT / ROLE<input id="flight-role" name="role" type="text" maxlength="24" placeholder="12A / 学员 / 乘客（可选）"></label>
+              <label class="full">NOTE<input id="flight-note" name="note" type="text" maxlength="80" placeholder="这趟飞行想记住的一句话（可选）"></label>
+              <datalist id="airport-list"></datalist>
+              <datalist id="aircraft-list"></datalist>
+              <p class="flight-form-error" id="flight-form-error" role="alert"></p>
+              <button class="cta gold-btn full" id="save-flight-btn" type="submit">SAVE TO LOGBOOK <span>↗</span></button>
+            </form>
+            <div class="flight-local-note"><i></i> 记录会自动保存在当前浏览器。建议偶尔导出一份备份；换手机或换电脑后，可以再导入回来。</div>
+            <div class="flight-data-actions">
+              <button class="text-btn" id="export-flights" type="button">导出飞行档案</button>
+              <button class="text-btn" id="import-flights" type="button">导入飞行档案</button>
+              <input id="import-flights-file" type="file" accept="application/json,.json" hidden>
+              <button class="text-btn danger" id="clear-local-flights" type="button">清空本机记录</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
     <section class="section window-section" id="windows">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">02 · WINDOW SEATS</p>
+          <p class="micro gold">03 · WINDOW SEATS</p>
           <h3>有些风景，<br>只想和你一起看。</h3>
         </div>
         <p>把三段最想收藏的画面，做成三扇舷窗。它们不是相册里的编号，而是这一程真正经过的风景。</p>
@@ -110,7 +203,7 @@
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">03 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">04 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -130,7 +223,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">04 · BEFORE TAKEOFF</p>
+          <p class="micro gold">05 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -146,7 +239,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">05 · FLIGHT RECORDER</p>
+        <p class="micro gold">06 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
