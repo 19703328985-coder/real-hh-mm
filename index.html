@@ -7,8 +7,8 @@
   <title>HH022 · 飞往 22 岁</title>
   <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=9.0">
-  <meta name="hh022-version" content="9.0">
+  <link rel="stylesheet" href="style.css?v=9.1">
+  <meta name="hh022-version" content="9.1">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -57,6 +57,7 @@
       <a href="#journal">JOURNAL</a>
       <a href="#plaud">BLACK BOX</a>
       <a href="#life-os">LIFE OS</a>
+      <a href="#future-mail">MAIL</a>
       <a href="#letter">LETTER</a>
     </nav>
     <div class="top-actions">
@@ -480,18 +481,70 @@
         </article>
       </div>
 
-      <article class="future-echo-card reveal" id="future-echo-card">
-        <div><span>FROM YOUR PAST SELF</span><strong id="future-echo-kicker">A MESSAGE IS WAITING</strong></div>
-        <blockquote id="future-echo-text">写下一句给未来的自己。等飞得更远以后，它会从过去回来找你。</blockquote>
-        <button class="text-btn" id="future-echo-open" type="button" hidden>OPEN THAT DAY →</button>
-      </article>
+    </section>
+
+    <section class="section future-mail-section" id="future-mail">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">08 · FUTURE MAIL</p>
+          <h3>写给未来。<br>让它在约定的那一天抵达。</h3>
+        </div>
+        <p>不是“随时都能看到”的留言，而是一封真正被时间锁住的信。写下内容、选择开启日期并封存；等那一天到来，再打开 HH022，它会主动从过去弹出来找你。</p>
+      </div>
+
+      <div class="future-mail-shell">
+        <article class="future-mail-compose reveal">
+          <div class="future-mail-eyebrow"><span>TIME-LOCKED MESSAGE</span><i></i><span>HH022 POST</span></div>
+          <div class="future-mail-envelope">
+            <div class="future-mail-stamp"><span>HH</span><strong>022</strong><small>PRIVATE AIR MAIL</small></div>
+            <div class="future-mail-compose-copy">
+              <span>LETTER TO A FUTURE VERSION OF YOU</span>
+              <h4>现在写下，未来签收。</h4>
+              <p>封存之后，信件会留在这台设备。开启日前只显示标题和抵达日期，不展示正文；抵达后会自动解锁，并保留在下方档案里随时重读。</p>
+              <button class="cta gold-btn" id="future-mail-new" type="button">WRITE A FUTURE LETTER <span>↗</span></button>
+            </div>
+          </div>
+
+          <div class="future-mail-form-shell" id="future-mail-form-shell" hidden>
+            <div class="memory-form-head">
+              <div><span>FUTURE DELIVERY</span><strong id="future-mail-form-title">写一封定时信</strong></div>
+              <button id="future-mail-form-close" type="button" aria-label="关闭">×</button>
+            </div>
+            <form class="future-mail-form" id="future-mail-form">
+              <label>OPEN ON<input id="future-mail-date" type="date" required></label>
+              <label>SUBJECT<input id="future-mail-title" type="text" maxlength="60" placeholder="例如：写给第一次单飞后的你" required></label>
+              <label class="full">MESSAGE<textarea id="future-mail-message" maxlength="4000" rows="10" placeholder="想对那一天的自己说什么？" required></textarea></label>
+              <div class="future-mail-seal-note full"><i></i><span>SEALED UNTIL DELIVERY</span><p>封存后，开启日前正文不会在档案列表里显示。到了指定日期，再打开 HH022 时会自动送达。</p></div>
+              <p class="memory-form-error full" id="future-mail-error" role="alert"></p>
+              <button class="cta gold-btn full" id="future-mail-save" type="submit">SEAL & SCHEDULE <span>↗</span></button>
+            </form>
+          </div>
+        </article>
+
+        <article class="future-mail-archive reveal delay-1">
+          <div class="os-card-head">
+            <div><span>FUTURE MAIL ARCHIVE</span><strong>时间信箱</strong></div>
+            <span id="future-mail-count">00 LETTERS</span>
+          </div>
+          <div class="future-mail-stats">
+            <div><span>WAITING</span><strong id="future-mail-waiting">0</strong></div>
+            <div><span>ARRIVED</span><strong id="future-mail-arrived">0</strong></div>
+            <div><span>NEXT DELIVERY</span><strong id="future-mail-next">—</strong></div>
+          </div>
+          <div class="future-mail-list" id="future-mail-list"></div>
+          <div class="future-mail-empty" id="future-mail-empty">
+            <span>NO LETTERS IN TRANSIT</span>
+            <strong>第一封信，等你选择它抵达未来的哪一天。</strong>
+          </div>
+        </article>
+      </div>
     </section>
 
     <section class="letter-section" id="letter">
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">08 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">09 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -511,7 +564,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">09 · BEFORE TAKEOFF</p>
+          <p class="micro gold">10 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -527,7 +580,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">10 · FLIGHT RECORDER</p>
+        <p class="micro gold">11 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
@@ -599,7 +652,30 @@
     </div>
   </div>
 
-  <audio id="bgm" src="bgm.mp3?v=9.0" loop preload="metadata"></audio>
-  <script src="app.js?v=9.0"></script>
+
+  <div class="future-mail-modal" id="future-mail-modal" hidden role="dialog" aria-modal="true" aria-labelledby="future-mail-modal-title">
+    <button class="future-mail-modal-backdrop" id="future-mail-modal-backdrop" type="button" aria-label="关闭未来来信"></button>
+    <article class="future-mail-modal-card">
+      <div class="future-mail-arrival-strip"><span>MESSAGE ARRIVED</span><i></i><strong>HH022 · FUTURE MAIL</strong></div>
+      <button class="future-mail-modal-close" id="future-mail-modal-close" type="button" aria-label="关闭">×</button>
+      <div class="future-mail-modal-stamp">DELIVERED</div>
+      <div class="future-mail-modal-head">
+        <span id="future-mail-modal-date">—</span>
+        <h3 id="future-mail-modal-title">一封来自过去的信</h3>
+        <p id="future-mail-modal-origin">WRITTEN —</p>
+      </div>
+      <div class="future-mail-modal-body" id="future-mail-modal-message"></div>
+      <div class="future-mail-modal-footer">
+        <span id="future-mail-modal-queue"></span>
+        <div>
+          <button class="text-btn" id="future-mail-modal-archive" type="button">OPEN ARCHIVE</button>
+          <button class="cta gold-btn" id="future-mail-modal-next" type="button" hidden>NEXT LETTER <span>→</span></button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <audio id="bgm" src="bgm.mp3?v=9.1" loop preload="metadata"></audio>
+  <script src="app.js?v=9.1"></script>
 </body>
 </html>

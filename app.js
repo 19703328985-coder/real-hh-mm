@@ -206,6 +206,7 @@ function enterSite() {
   document.body.classList.add('entered');
   boarding.classList.add('leaving');
   setTimeout(() => boarding.hidden = true, reducedMotion ? 20 : 900);
+  setTimeout(() => maybeAutoDeliverFutureMail(), reducedMotion ? 120 : 1250);
 }
 
 boardBtn.addEventListener('click', enterSite);
@@ -1219,9 +1220,10 @@ if (atlasSection) {
    IndexedDB keeps image-heavy data on the current device.
    ========================================================= */
 const PRIVATE_DB_NAME = 'hh022-private-vault-v1';
-const PRIVATE_DB_VERSION = 1;
+const PRIVATE_DB_VERSION = 2;
 const GALLERY_STORE = 'gallery';
 const JOURNAL_STORE = 'journal';
+const FUTURE_MAIL_STORE = 'futureMail';
 
 const STARTER_GALLERY = WINDOW_MEMORIES.map((item, index) => ({
   id: `starter-${index + 1}`,
@@ -1248,6 +1250,10 @@ function openPrivateDb() {
       if (!db.objectStoreNames.contains(JOURNAL_STORE)) {
         const store = db.createObjectStore(JOURNAL_STORE, { keyPath: 'id' });
         store.createIndex('date', 'date', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(FUTURE_MAIL_STORE)) {
+        const store = db.createObjectStore(FUTURE_MAIL_STORE, { keyPath: 'id' });
+        store.createIndex('unlockDate', 'unlockDate', { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -2124,6 +2130,245 @@ plaudForm?.addEventListener('submit',async(event)=>{
 });
 
 
+/* =========================================================
+   V9.1 · FUTURE MAIL / TIME CAPSULE
+   A letter remains sealed until its chosen local calendar date.
+   ========================================================= */
+const futureMailNew = $('#future-mail-new');
+const futureMailFormShell = $('#future-mail-form-shell');
+const futureMailFormClose = $('#future-mail-form-close');
+const futureMailForm = $('#future-mail-form');
+const futureMailFormTitle = $('#future-mail-form-title');
+const futureMailDate = $('#future-mail-date');
+const futureMailTitle = $('#future-mail-title');
+const futureMailMessage = $('#future-mail-message');
+const futureMailError = $('#future-mail-error');
+const futureMailSave = $('#future-mail-save');
+const futureMailCount = $('#future-mail-count');
+const futureMailWaiting = $('#future-mail-waiting');
+const futureMailArrived = $('#future-mail-arrived');
+const futureMailNext = $('#future-mail-next');
+const futureMailList = $('#future-mail-list');
+const futureMailEmpty = $('#future-mail-empty');
+const futureMailModal = $('#future-mail-modal');
+const futureMailModalBackdrop = $('#future-mail-modal-backdrop');
+const futureMailModalClose = $('#future-mail-modal-close');
+const futureMailModalDate = $('#future-mail-modal-date');
+const futureMailModalTitle = $('#future-mail-modal-title');
+const futureMailModalOrigin = $('#future-mail-modal-origin');
+const futureMailModalMessage = $('#future-mail-modal-message');
+const futureMailModalQueue = $('#future-mail-modal-queue');
+const futureMailModalArchive = $('#future-mail-modal-archive');
+const futureMailModalNext = $('#future-mail-modal-next');
+
+let futureMailRecords = [];
+let editingFutureMailId = null;
+let activeFutureMailId = null;
+let futureMailReady = false;
+
+function futureMailIsDue(item) {
+  return Boolean(item?.unlockDate) && item.unlockDate <= localISODate();
+}
+function futureMailDaysUntil(item) {
+  if (!item?.unlockDate) return null;
+  const today = new Date(`${localISODate()}T00:00:00`);
+  const target = new Date(`${item.unlockDate}T00:00:00`);
+  return Math.ceil((target - today) / 86400000);
+}
+function futureMailMonthDay(date) {
+  if (!date) return { day:'—', month:'—' };
+  const parts = date.split('-');
+  return { day:parts[2] || '—', month:`${parts[0]}.${parts[1]}` };
+}
+function futureMailStatus(item) {
+  if (!futureMailIsDue(item)) return { key:'waiting', label:'IN TRANSIT' };
+  if (item.openedAt) return { key:'opened', label:'OPENED' };
+  return { key:'due', label:'ARRIVED' };
+}
+function futureMailSummary(item) {
+  if (!futureMailIsDue(item)) {
+    const days = futureMailDaysUntil(item);
+    if (days === 0) return '今天抵达';
+    if (days === 1) return '明天抵达';
+    return days > 1 ? `${days} DAYS TO DELIVERY` : `DELIVERS ${prettyDate(item.unlockDate)}`;
+  }
+  return item.openedAt ? `OPENED ${prettyDate(String(item.openedAt).slice(0,10))}` : 'READY TO OPEN';
+}
+function resetFutureMailForm() {
+  editingFutureMailId = null;
+  futureMailForm?.reset();
+  if (futureMailDate) {
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    const offset = tomorrow.getTimezoneOffset() * 60000;
+    futureMailDate.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0,10);
+    futureMailDate.min = localISODate();
+  }
+  if (futureMailFormTitle) futureMailFormTitle.textContent = '写一封定时信';
+  if (futureMailSave) futureMailSave.firstChild.textContent = 'SEAL & SCHEDULE ';
+  if (futureMailError) futureMailError.textContent = '';
+}
+function openFutureMailForm(record = null) {
+  if (!futureMailFormShell) return;
+  resetFutureMailForm();
+  if (record) {
+    editingFutureMailId = record.id;
+    futureMailDate.value = record.unlockDate || localISODate();
+    futureMailTitle.value = record.title || '';
+    futureMailMessage.value = record.message || '';
+    futureMailFormTitle.textContent = '修改尚未抵达的信';
+    futureMailSave.firstChild.textContent = 'RESEAL LETTER ';
+  }
+  futureMailFormShell.hidden = false;
+  requestAnimationFrame(() => futureMailFormShell.scrollIntoView({ behavior:reducedMotion?'auto':'smooth', block:'center' }));
+}
+function closeFutureMailForm() {
+  if (!futureMailFormShell) return;
+  futureMailFormShell.hidden = true;
+  resetFutureMailForm();
+}
+function renderFutureMailArchive() {
+  if (!futureMailList) return;
+  const sorted = [...futureMailRecords].sort((a,b) => (b.unlockDate || '').localeCompare(a.unlockDate || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const waiting = sorted.filter((item) => !futureMailIsDue(item));
+  const arrived = sorted.filter(futureMailIsDue);
+  futureMailCount.textContent = `${String(sorted.length).padStart(2,'0')} LETTER${sorted.length===1?'':'S'}`;
+  futureMailWaiting.textContent = String(waiting.length);
+  futureMailArrived.textContent = String(arrived.length);
+  const next = [...waiting].sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''))[0];
+  futureMailNext.textContent = next ? prettyDate(next.unlockDate) : '—';
+  futureMailEmpty.hidden = sorted.length > 0;
+  futureMailList.innerHTML = '';
+  sorted.forEach((item) => {
+    const status = futureMailStatus(item);
+    const md = futureMailMonthDay(item.unlockDate);
+    const wrapper = document.createElement('div');
+    wrapper.className = `future-mail-item ${status.key}`;
+    wrapper.innerHTML = `
+      <div class="future-mail-item-date"><strong>${escapeHtml(md.day)}</strong><span>${escapeHtml(md.month)}</span></div>
+      <button class="future-mail-item-copy" type="button" aria-label="${futureMailIsDue(item)?'打开':'查看'} ${escapeHtml(item.title || '未来来信')}">
+        <span>${futureMailIsDue(item) ? 'DELIVERED FUTURE MAIL' : 'SEALED FUTURE MAIL'}</span>
+        <strong>${escapeHtml(item.title || 'Untitled future mail')}</strong>
+        <small>${escapeHtml(futureMailSummary(item))}</small>
+      </button>
+      <div class="future-mail-item-status"><i></i>${escapeHtml(status.label)}</div>
+      <div class="future-mail-item-actions">
+        ${!futureMailIsDue(item) ? `<button type="button" data-action="edit">EDIT BEFORE DELIVERY</button>` : ''}
+        <button type="button" class="danger" data-action="delete">DELETE</button>
+      </div>`;
+    $('.future-mail-item-copy', wrapper).addEventListener('click', () => {
+      if (!futureMailIsDue(item)) {
+        const days = futureMailDaysUntil(item);
+        window.alert(days === 1 ? '这封信会在明天解锁。' : `这封信仍在途中，将于 ${prettyDate(item.unlockDate)} 解锁。`);
+        return;
+      }
+      openFutureMail(item.id, false);
+    });
+    const edit = $('[data-action="edit"]', wrapper);
+    edit?.addEventListener('click', () => openFutureMailForm(item));
+    $('[data-action="delete"]', wrapper)?.addEventListener('click', async () => {
+      if (!window.confirm('删除这封未来来信？删除后无法恢复。')) return;
+      await idbDelete(FUTURE_MAIL_STORE, item.id);
+      futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
+      renderFutureMailArchive();
+    });
+    futureMailList.appendChild(wrapper);
+  });
+}
+async function markFutureMailOpened(item) {
+  if (!item.openedAt) item.openedAt = new Date().toISOString();
+  item.updatedAt = new Date().toISOString();
+  await idbPut(FUTURE_MAIL_STORE, item);
+}
+async function openFutureMail(id, auto = false) {
+  const item = futureMailRecords.find((record) => record.id === id);
+  if (!item || !futureMailIsDue(item) || !futureMailModal) return;
+  activeFutureMailId = item.id;
+  await markFutureMailOpened(item);
+  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
+  futureMailModalDate.textContent = `DELIVERED · ${prettyDate(item.unlockDate)}`;
+  futureMailModalTitle.textContent = item.title || '一封来自过去的信';
+  futureMailModalOrigin.textContent = `WRITTEN ${prettyDate(String(item.createdAt || '').slice(0,10))}`;
+  futureMailModalMessage.textContent = item.message || '';
+  const queue = futureMailRecords.filter((record) => futureMailIsDue(record) && !record.notifiedAt && record.id !== item.id).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''));
+  futureMailModalQueue.textContent = auto ? (queue.length ? `还有 ${queue.length} 封已抵达的信等待签收` : '这封信，刚刚从过去抵达。') : '已解锁 · 可随时在时间信箱重新打开';
+  futureMailModalNext.hidden = !auto || queue.length === 0;
+  futureMailModal.hidden = false;
+  document.body.classList.add('future-mail-open');
+  renderFutureMailArchive();
+}
+async function acknowledgeActiveFutureMail() {
+  if (!activeFutureMailId) return;
+  const item = futureMailRecords.find((record) => record.id === activeFutureMailId);
+  if (!item || item.notifiedAt) return;
+  item.notifiedAt = new Date().toISOString();
+  item.updatedAt = new Date().toISOString();
+  await idbPut(FUTURE_MAIL_STORE, item);
+  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
+}
+async function closeFutureMailModal() {
+  await acknowledgeActiveFutureMail();
+  activeFutureMailId = null;
+  futureMailModal.hidden = true;
+  document.body.classList.remove('future-mail-open');
+  renderFutureMailArchive();
+}
+async function maybeAutoDeliverFutureMail() {
+  if (!futureMailReady || !document.body.classList.contains('entered') || !futureMailModal?.hidden) return;
+  const due = [...futureMailRecords].filter((item) => futureMailIsDue(item) && !item.notifiedAt).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||'') || (a.createdAt||'').localeCompare(b.createdAt||''));
+  if (!due.length) return;
+  await openFutureMail(due[0].id, true);
+}
+
+futureMailNew?.addEventListener('click', () => openFutureMailForm());
+futureMailFormClose?.addEventListener('click', closeFutureMailForm);
+futureMailForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const unlockDate = futureMailDate.value;
+  const title = futureMailTitle.value.trim();
+  const message = futureMailMessage.value.trim();
+  if (!unlockDate || !title || !message) { futureMailError.textContent = '开启日期、标题和正文都需要填写。'; return; }
+  if (unlockDate < localISODate()) { futureMailError.textContent = '开启日期不能早于今天。'; return; }
+  futureMailError.textContent = '';
+  futureMailSave.disabled = true;
+  try {
+    const old = editingFutureMailId ? futureMailRecords.find((item)=>item.id===editingFutureMailId) : null;
+    const record = {
+      id: old?.id || makeId('future-mail'),
+      title,
+      message,
+      unlockDate,
+      createdAt: old?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      openedAt: old?.openedAt || null,
+      notifiedAt: old?.notifiedAt || null
+    };
+    await idbPut(FUTURE_MAIL_STORE, record);
+    futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
+    renderFutureMailArchive();
+    closeFutureMailForm();
+  } catch (error) {
+    console.warn(error);
+    futureMailError.textContent = '封存失败，请稍后再试。';
+  } finally {
+    futureMailSave.disabled = false;
+  }
+});
+futureMailModalClose?.addEventListener('click', closeFutureMailModal);
+futureMailModalBackdrop?.addEventListener('click', closeFutureMailModal);
+futureMailModalArchive?.addEventListener('click', async () => {
+  await closeFutureMailModal();
+  $('#future-mail')?.scrollIntoView({ behavior:reducedMotion?'auto':'smooth', block:'start' });
+});
+futureMailModalNext?.addEventListener('click', async () => {
+  await acknowledgeActiveFutureMail();
+  const next = [...futureMailRecords].filter((item)=>futureMailIsDue(item) && !item.notifiedAt && item.id !== activeFutureMailId).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''))[0];
+  if (next) await openFutureMail(next.id, true); else await closeFutureMailModal();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && futureMailModal && !futureMailModal.hidden) closeFutureMailModal();
+});
+
+
 /* ---------- Portable private archive backup ---------- */
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -2145,6 +2390,7 @@ function dataUrlToBlob(dataUrl) {
 async function exportPrivateArchive() {
   const gallery = await idbGetAll(GALLERY_STORE);
   const journal = await idbGetAll(JOURNAL_STORE);
+  const futureMail = await idbGetAll(FUTURE_MAIL_STORE);
   const galleryPortable = [];
   for (const item of gallery) galleryPortable.push({ ...item, blob: await blobToDataUrl(item.blob) });
   const journalPortable = [];
@@ -2156,10 +2402,11 @@ async function exportPrivateArchive() {
   }
   const payload = {
     kind: 'HH022_PRIVATE_ARCHIVE',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     gallery: galleryPortable,
     journal: journalPortable,
+    futureMail,
     flights: readLocalFlights(),
     milestones: readGrowthMilestones(),
     wish: localStorage.getItem(STORAGE_KEY) || null
@@ -2185,6 +2432,10 @@ async function importPrivateArchive(file) {
     const voice = item.voice?.blob ? { ...item.voice, blob:dataUrlToBlob(item.voice.blob) } : null;
     await idbPut(JOURNAL_STORE, { ...item, photos, voice });
   }
+  for (const item of payload.futureMail || []) {
+    if (!item?.id || !item?.unlockDate) continue;
+    await idbPut(FUTURE_MAIL_STORE, item);
+  }
   if (payload.milestones && typeof payload.milestones === 'object') {
     localStorage.setItem(GROWTH_MILESTONE_KEY, JSON.stringify(payload.milestones));
   }
@@ -2196,10 +2447,13 @@ async function importPrivateArchive(file) {
   if (payload.wish) localStorage.setItem(STORAGE_KEY, payload.wish);
   galleryLocalRecords = await idbGetAll(GALLERY_STORE);
   journalRecords = await idbGetAll(JOURNAL_STORE);
+  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
   renderGallery();
   renderJournalIndex();
+  renderFutureMailArchive();
   refreshLifeOS();
 }
+
 
 galleryExport?.addEventListener('click', async () => {
   galleryExport.disabled = true;
@@ -2579,12 +2833,17 @@ async function initPrivateVault() {
   try {
     galleryLocalRecords = await idbGetAll(GALLERY_STORE);
     journalRecords = await idbGetAll(JOURNAL_STORE);
+    futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
     galleryDate.value = localISODate();
     journalDate.value = localISODate();
     if (plaudDate) plaudDate.value = localISODate();
+    resetFutureMailForm();
     renderGallery();
     renderJournalIndex();
+    renderFutureMailArchive();
     refreshLifeOS();
+    futureMailReady = true;
+    if (document.body.classList.contains('entered')) setTimeout(() => maybeAutoDeliverFutureMail(), 250);
   } catch (error) {
     console.warn('Private vault init failed:', error);
   }
