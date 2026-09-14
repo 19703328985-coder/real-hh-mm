@@ -2006,12 +2006,32 @@ function writeGrowthMilestones(value) {
 function journalHasStage(stage) {
   return journalRecords.some((item) => String(item.stage || '').includes(stage));
 }
+function journalSearchText(item) {
+  return [
+    item?.stage,
+    item?.title,
+    item?.note,
+    item?.lesson,
+    item?.mood,
+    item?.weather,
+    item?.aircraft
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+function journalHasAnyKeyword(keywords) {
+  const words = keywords.map((word) => String(word).toLowerCase());
+  return journalRecords.some((item) => {
+    const corpus = journalSearchText(item);
+    return words.some((word) => corpus.includes(word));
+  });
+}
 function milestoneEvidence(id) {
   if (id === 'ground') return journalRecords.length > 0;
-  if (id === 'circuit') return journalHasStage('起落航线');
-  if (id === 'solo') return journalHasStage('单飞');
-  if (id === 'crosscountry') return journalHasStage('转场训练');
-  if (id === 'instrument') return journalHasStage('仪表训练');
+  if (id === 'circuit') return journalHasAnyKeyword(['起落航线', '本场训练', 'circuit', 'pattern']);
+  // SOLO must be robust: older journal versions may have written “首次单飞”
+  // in the title/note rather than saving it in the stage field.
+  if (id === 'solo') return journalHasAnyKeyword(['首次单飞', '单飞', '独飞', '独立飞行', 'first solo', 'solo flight', 'solo']);
+  if (id === 'crosscountry') return journalHasAnyKeyword(['转场训练', '转场', 'cross country', 'cross-country', 'xc']);
+  if (id === 'instrument') return journalHasAnyKeyword(['仪表训练', '仪表飞行', 'instrument', 'ifr']);
   return false;
 }
 function effectiveMilestones() {
@@ -2070,7 +2090,7 @@ function badgeMetrics() {
   ]);
   const airports = new Set();
   flights.forEach((item) => { airports.add(item.from); airports.add(item.to); });
-  const textCorpus = journalRecords.map((item) => `${item.stage || ''} ${item.title || ''} ${item.note || ''}`).join(' ');
+  const textCorpus = journalRecords.map((item) => journalSearchText(item)).join(' ');
   return { flights, hours, types, airports, textCorpus };
 }
 function renderBadges() {
@@ -2082,14 +2102,26 @@ function renderBadges() {
     { symbol:'↗', title:'FIRST ROUTE', note:'记录第一程航班', unlocked:m.flights.length >= 1 },
     { symbol:'10H', title:'TEN HOURS', note:'累计记录 10 小时训练', unlocked:m.hours >= 10 },
     { symbol:'SOLO', title:'SOLO WINGS', note:'首次单飞', unlocked:milestone.solo },
-    { symbol:'N', title:'NIGHT OWL', note:'记录过一次夜航', unlocked:journalHasStage('夜航') || /夜航/.test(m.textCorpus) },
+    { symbol:'N', title:'NIGHT OWL', note:'记录过一次夜航', unlocked:journalHasAnyKeyword(['夜航', 'night flight', 'night']) },
     { symbol:'3T', title:'TYPE COLLECTOR', note:'记录 3 种不同机型', unlocked:m.types.size >= 3 },
     { symbol:'5A', title:'AIRPORT EXPLORER', note:'去过 5 个机场', unlocked:m.airports.size >= 5 },
     { symbol:'10F', title:'TEN FLIGHTS', note:'记录 10 程航班', unlocked:m.flights.length >= 10 },
     { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) }
   ];
-  badgeProgress.textContent = `${defs.filter((item) => item.unlocked).length} / ${defs.length} UNLOCKED`;
-  badgeWall.innerHTML = defs.map((item) => `<div class="flight-badge ${item.unlocked ? 'unlocked' : ''}"><div class="badge-symbol">${escapeHtml(item.symbol)}</div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.note)}</span></div>`).join('');
+  const unlockedCount = defs.filter((item) => item.unlocked).length;
+  badgeProgress.textContent = `${unlockedCount} / ${defs.length} UNLOCKED`;
+  badgeWall.innerHTML = defs.map((item, index) => `
+    <article class="flight-badge ${item.unlocked ? 'unlocked' : ''}">
+      <div class="badge-topline"><span>FLIGHT ACHIEVEMENT</span><em>${String(index + 1).padStart(2,'0')}</em></div>
+      <div class="badge-medal" aria-hidden="true">
+        <span class="badge-wing badge-wing-left"></span>
+        <div class="badge-symbol">${escapeHtml(item.symbol)}</div>
+        <span class="badge-wing badge-wing-right"></span>
+      </div>
+      <strong>${escapeHtml(item.title)}</strong>
+      <span class="badge-note">${escapeHtml(item.note)}</span>
+      <div class="badge-lock-state">${item.unlocked ? '<i></i> ACHIEVEMENT UNLOCKED' : 'LOCKED · KEEP FLYING'}</div>
+    </article>`).join('');
 }
 
 function dominantValue(items, key) {

@@ -265,3 +265,97 @@ body.pointer .cursor-glow{opacity:1}
   .cockpit-progress{grid-template-columns:1fr}.progress-dial{margin:auto}.cockpit-kpis{grid-template-columns:1fr 1fr}.badge-wall{grid-template-columns:repeat(2,1fr)}.weather-year-grid{grid-template-columns:repeat(3,1fr)}.journal-voice-playback{grid-template-columns:1fr}.cvr-controls>span{margin-left:0}
 }
 @media(max-width:440px){.weather-year-grid{grid-template-columns:repeat(2,1fr)}.flight-badge{min-height:138px}.milestone-item{grid-template-columns:38px 1fr}.milestone-item>span:last-child{grid-column:2}.constellation-stage{height:370px}}
+
+
+/* =========================================================
+   V8.1 · Badge legibility + SOLO evidence fix visual refresh
+   ========================================================= */
+/* Training form: make MOOD / INNER WEATHER and field labels easier to read */
+.journal-form label{font-size:10px;letter-spacing:.13em;color:#8ea1ad;gap:9px}
+.journal-form input,.journal-form textarea,.journal-form select{font-size:13px}
+.journal-tags span{font-size:10px;padding:8px 11px;letter-spacing:.09em}
+.journal-tags span.mood{background:rgba(205,183,143,.055);box-shadow:inset 0 0 18px rgba(205,183,143,.025)}
+
+/* Section header legibility */
+.badge-card .os-card-head span,.weather-card .os-card-head span{font-size:10px}
+.badge-card .os-card-head strong,.weather-card .os-card-head strong{font-size:19px}
+.badge-card .os-card-head>span,.weather-card .os-card-head>span{font-size:9px}
+
+/* Aviation wing-medal badge system */
+.badge-wall{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008))}
+.flight-badge{
+  min-height:220px;
+  padding:16px 16px 18px;
+  border:1px solid rgba(255,255,255,.075);
+  background:
+    radial-gradient(circle at 50% 28%,rgba(117,154,177,.08),transparent 32%),
+    linear-gradient(160deg,#0b1b26 0%,#07131d 62%,#06101a 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;
+  position:relative;overflow:hidden;filter:saturate(.52);opacity:.58;transition:.35s ease;
+}
+.flight-badge::before{
+  content:"";position:absolute;inset:8px;border:1px solid rgba(255,255,255,.045);
+  pointer-events:none;border-radius:0;transform:none;width:auto;height:auto;
+}
+.flight-badge::after{content:none}
+.flight-badge:hover{transform:translateY(-3px);border-color:rgba(145,187,210,.22);opacity:.78}
+.badge-topline{width:100%;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2;color:#6e818c;border-bottom:1px solid rgba(255,255,255,.055);padding-bottom:10px}
+.badge-topline span{font-size:8px!important;letter-spacing:.17em;margin:0!important;color:#6e818c!important}
+.badge-topline em{font:400 12px/1 Georgia,serif;color:#758a96;font-style:normal}
+.badge-medal{position:relative;z-index:2;width:154px;height:88px;display:flex;align-items:center;justify-content:center;margin:18px 0 9px}
+.badge-symbol{position:relative!important;z-index:3!important;width:68px!important;height:68px!important;border-radius:50%!important;display:grid!important;place-items:center!important;margin:0!important;
+  border:1px solid rgba(164,188,201,.20)!important;background:radial-gradient(circle at 38% 30%,#17303e 0%,#0b1a24 56%,#061019 100%)!important;
+  box-shadow:inset 0 0 0 5px rgba(255,255,255,.018),0 8px 28px rgba(0,0,0,.28)!important;
+  font:500 17px/1 Georgia,serif!important;letter-spacing:.03em!important;color:#8da1ad!important;
+}
+.badge-wing{position:absolute;top:38px;width:53px;height:18px;border-top:1px solid rgba(151,176,191,.20);border-bottom:1px solid rgba(151,176,191,.11)}
+.badge-wing::before,.badge-wing::after{content:"";position:absolute;left:0;right:0;height:1px;background:rgba(151,176,191,.13);transform-origin:center}
+.badge-wing::before{top:5px}.badge-wing::after{top:10px}
+.badge-wing-left{right:96px;transform:skewY(-10deg);clip-path:polygon(0 46%,100% 0,100% 100%,0 66%)}
+.badge-wing-right{left:96px;transform:skewY(10deg);clip-path:polygon(0 0,100% 46%,100% 66%,0 100%)}
+.flight-badge>strong{position:relative;z-index:2;margin-top:5px!important;font:600 12px/1.2 var(--sans)!important;letter-spacing:.14em!important;color:#aab5bb}
+.flight-badge .badge-note{position:relative;z-index:2;margin-top:8px!important;font-size:11px!important;line-height:1.55!important;color:#7f929d!important;letter-spacing:.02em!important}
+.badge-lock-state{position:relative;z-index:2;margin-top:auto;padding-top:16px;font-size:8px;letter-spacing:.14em;color:#61747f;display:flex;align-items:center;gap:7px}
+.badge-lock-state i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#8fbda0;box-shadow:0 0 12px rgba(143,189,160,.48)}
+.flight-badge.unlocked{
+  opacity:1;filter:none;border-color:rgba(205,183,143,.34);
+  background:
+    radial-gradient(circle at 50% 28%,rgba(205,183,143,.14),transparent 34%),
+    linear-gradient(160deg,#13232c 0%,#091821 57%,#07121a 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 10px 34px rgba(0,0,0,.24),0 0 28px rgba(205,183,143,.035)
+}
+.flight-badge.unlocked::before{border-color:rgba(205,183,143,.10)}
+.flight-badge.unlocked .badge-topline{color:#aa9877;border-color:rgba(205,183,143,.13)}
+.flight-badge.unlocked .badge-topline span{color:#a99879!important}.flight-badge.unlocked .badge-topline em{color:var(--gold2)}
+.flight-badge.unlocked .badge-symbol{
+  color:#f2e4c5!important;border-color:rgba(221,198,153,.62)!important;
+  background:radial-gradient(circle at 36% 28%,#5c503c 0%,#2c2a25 44%,#111c22 100%)!important;
+  box-shadow:inset 0 0 0 5px rgba(233,211,169,.055),0 0 28px rgba(205,183,143,.16),0 12px 30px rgba(0,0,0,.32)!important
+}
+.flight-badge.unlocked .badge-wing{border-color:rgba(214,194,153,.42)}
+.flight-badge.unlocked .badge-wing::before,.flight-badge.unlocked .badge-wing::after{background:rgba(214,194,153,.28)}
+.flight-badge.unlocked>strong{color:#f0e8d8!important}.flight-badge.unlocked .badge-note{color:#b9c2c3!important}.flight-badge.unlocked .badge-lock-state{color:#8fbda0}
+
+/* Inner Weather / MOOD: deliberately larger and more readable */
+.weather-year-grid{gap:8px;padding:12px;background:rgba(255,255,255,.02)}
+.weather-month{min-height:142px;padding:16px 15px;border:1px solid rgba(255,255,255,.055);background:#081620}
+.weather-month>span{font-size:9px;letter-spacing:.13em;color:#768b97}
+.weather-month .weather-icon{font-size:31px;margin:17px 0 10px}
+.weather-month strong{font-size:11px;letter-spacing:.09em;color:#d5dcdb}
+.weather-month small{margin-top:8px;font-size:9px;line-height:1.55;color:#7f929d}
+.weather-summary{min-height:74px;padding:19px 20px;color:#8fa0a9;font-size:11px;line-height:1.8}
+
+@media(max-width:1080px){.badge-wall{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){
+  .badge-wall{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
+  .flight-badge{min-height:205px;padding:14px 12px 16px}
+  .weather-month{min-height:132px}
+  .journal-form label{font-size:10px}
+}
+@media(max-width:440px){
+  .badge-wall{grid-template-columns:1fr 1fr;gap:8px;padding:8px}
+  .flight-badge{min-height:194px;padding:12px 9px 14px}
+  .badge-medal{transform:scale(.88);margin:12px 0 5px}
+  .flight-badge>strong{font-size:10px!important}.flight-badge .badge-note{font-size:10px!important}
+  .weather-month{min-height:124px;padding:13px 11px}.weather-month .weather-icon{font-size:27px}
+}
