@@ -52,9 +52,9 @@
     <nav aria-label="页面导航">
       <a href="#log">LOG</a>
       <a href="#atlas">ATLAS</a>
-      <a href="#windows">WINDOWS</a>
+      <a href="#gallery">MEMORIES</a>
+      <a href="#journal">JOURNAL</a>
       <a href="#letter">LETTER</a>
-      <a href="#wish">WISH</a>
     </nav>
     <div class="top-actions">
       <button class="music-control" id="music-control" type="button" aria-pressed="false" aria-label="切换背景音乐">
@@ -199,11 +199,153 @@
       <div class="windows-grid" id="windows-grid"></div>
     </section>
 
+
+    <section class="section memory-vault-section" id="gallery">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">04 · MEMORY VAULT</p>
+          <h3>把我们走过的日子，<br>收进一间会生长的相册。</h3>
+        </div>
+        <p>这里不只放今天的三张照片。以后你们可以继续往里面加新的画面：日期、地点和一句话都会和照片一起保存。相册采用立体电影胶片式轮播，轻轻滑动就能翻阅。</p>
+      </div>
+
+      <div class="memory-toolbar reveal">
+        <div class="memory-status">
+          <span>PRIVATE PHOTO CABIN</span>
+          <strong id="gallery-count">03 MEMORIES</strong>
+        </div>
+        <div class="memory-toolbar-actions">
+          <button class="text-btn" id="gallery-upload-toggle" type="button">＋ ADD NEW MEMORY</button>
+          <button class="text-btn" id="gallery-export" type="button">导出私人档案</button>
+          <button class="text-btn" id="gallery-import" type="button">导入私人档案</button>
+          <input id="gallery-import-file" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+
+      <div class="memory-deck reveal">
+        <button class="memory-nav memory-prev" id="gallery-prev" type="button" aria-label="上一张">←</button>
+        <div class="memory-stage" id="gallery-stage" aria-live="polite"></div>
+        <button class="memory-nav memory-next" id="gallery-next" type="button" aria-label="下一张">→</button>
+        <div class="memory-deck-footer">
+          <span id="gallery-position">01 / 03</span>
+          <span>DRAG · SCROLL · TAP TO OPEN</span>
+        </div>
+      </div>
+
+      <div class="memory-upload-shell reveal" id="gallery-upload-shell" hidden>
+        <div class="memory-form-head">
+          <div><span>ADD TO MEMORY VAULT</span><strong>收藏新的照片</strong></div>
+          <button id="gallery-upload-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <form class="memory-upload-form" id="gallery-upload-form">
+          <label>DATE<input id="gallery-date" type="date" required></label>
+          <label>PLACE<input id="gallery-place" type="text" maxlength="40" placeholder="厦门 / 学校 / 某个普通下午"></label>
+          <label class="full">TITLE<input id="gallery-title" type="text" maxlength="50" placeholder="给这一组照片起个名字"></label>
+          <label class="full">ONE LINE<textarea id="gallery-note" maxlength="140" rows="3" placeholder="以后看到这张照片时，希望还记得什么？"></textarea></label>
+          <label class="memory-file-drop full">
+            <input id="gallery-files" type="file" accept="image/*" multiple required>
+            <span>DROP PHOTOS HERE / CHOOSE PHOTOS</span>
+            <small>一次最多建议 12 张；网站会自动压缩后保存在当前浏览器。</small>
+          </label>
+          <p class="memory-form-error" id="gallery-form-error" role="alert"></p>
+          <button class="cta gold-btn full" type="submit" id="gallery-save">SAVE TO MEMORY VAULT <span>↗</span></button>
+        </form>
+        <p class="private-storage-note"><i></i> 新增照片保存在当前设备的浏览器数据库（IndexedDB），不会自动上传到服务器。建议定期使用“导出私人档案”备份。</p>
+      </div>
+    </section>
+
+    <section class="section training-journal-section" id="journal">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">05 · PILOT TRAINING JOURNAL</p>
+          <h3>学飞不是一条直线。<br>把每一次起落都写下来。</h3>
+        </div>
+        <p>训练科目、机型、飞行时长、当天的心情、做得好的地方、需要修正的地方，都可以在这里留下。以后按照日期翻回去，会看到的不只是技术进步，也会看到一个飞行员慢慢长成的过程。</p>
+      </div>
+
+      <div class="journal-toolbar reveal">
+        <div class="journal-stats">
+          <div><span>ENTRIES</span><strong id="journal-stat-count">0</strong></div>
+          <div><span>HOURS LOGGED</span><strong id="journal-stat-hours">0.0 H</strong></div>
+          <div><span>LATEST ENTRY</span><strong id="journal-stat-latest">—</strong></div>
+        </div>
+        <button class="cta ghost-light" id="journal-new" type="button">＋ NEW LOG ENTRY</button>
+      </div>
+
+      <div class="journal-layout reveal">
+        <aside class="journal-index-panel">
+          <div class="journal-index-head"><span>BROWSE BY DATE</span><strong>训练日期</strong></div>
+          <div class="journal-date-list" id="journal-date-list"></div>
+          <div class="journal-empty-index" id="journal-empty-index">第一篇日志，会从第一次想认真记住的训练开始。</div>
+        </aside>
+
+        <article class="journal-reader" id="journal-reader">
+          <div class="journal-reader-empty" id="journal-reader-empty">
+            <span>NO TRAINING LOG YET</span>
+            <strong>今天飞了什么？哪里做得不错？哪里还想再练一次？</strong>
+            <p>写下来。过一段时间再回头看，会比“我好像进步了”更有力量。</p>
+          </div>
+          <div class="journal-entry-view" id="journal-entry-view" hidden>
+            <div class="journal-reader-top">
+              <div>
+                <time id="journal-view-date"></time>
+                <h4 id="journal-view-title"></h4>
+              </div>
+              <div class="journal-page-nav">
+                <button id="journal-prev" type="button" aria-label="上一篇">←</button>
+                <span id="journal-page-position">01 / 01</span>
+                <button id="journal-next" type="button" aria-label="下一篇">→</button>
+              </div>
+            </div>
+            <div class="journal-tags" id="journal-view-tags"></div>
+            <div class="journal-body-block">
+              <span>FLIGHT NOTE</span>
+              <p id="journal-view-note"></p>
+            </div>
+            <div class="journal-body-block lesson">
+              <span>LESSON LEARNED</span>
+              <p id="journal-view-lesson"></p>
+            </div>
+            <div class="journal-photo-grid" id="journal-view-photos"></div>
+            <div class="journal-reader-actions">
+              <button class="text-btn" id="journal-edit" type="button">EDIT ENTRY</button>
+              <button class="text-btn danger" id="journal-delete" type="button">DELETE ENTRY</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="journal-form-shell reveal" id="journal-form-shell" hidden>
+        <div class="memory-form-head">
+          <div><span>TRAINING LOGBOOK</span><strong id="journal-form-title">记录今天的训练</strong></div>
+          <button id="journal-form-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <form class="journal-form" id="journal-form">
+          <label>DATE<input id="journal-date" type="date" required></label>
+          <label>TRAINING STAGE<select id="journal-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
+          <label>ACT / AIRCRAFT<input id="journal-aircraft" type="text" maxlength="30" placeholder="C172S / DA40 / 模拟机"></label>
+          <label>DURATION (H)<input id="journal-hours" type="number" min="0" max="24" step="0.1" placeholder="1.5"></label>
+          <label>MOOD<select id="journal-mood"><option>平静</option><option>兴奋</option><option>紧张</option><option>挫败</option><option>突破</option><option>疲惫</option><option>很有成就感</option></select></label>
+          <label class="wide">TITLE<input id="journal-title" type="text" maxlength="60" placeholder="例如：第一次独立完成稳定进近" required></label>
+          <label class="full">TODAY'S NOTE<textarea id="journal-note" maxlength="1600" rows="7" placeholder="今天发生了什么？哪些动作比上次更稳定？当时是什么感受？" required></textarea></label>
+          <label class="full">LESSON LEARNED<textarea id="journal-lesson" maxlength="1000" rows="5" placeholder="今天最值得带走的一条经验 / 下次训练前提醒自己的事。"></textarea></label>
+          <label class="memory-file-drop full">
+            <input id="journal-files" type="file" accept="image/*" multiple>
+            <span>ADD TRAINING PHOTOS</span>
+            <small>可以放当天机坪、飞机、航图或训练结束后的照片；每篇建议不超过 6 张。</small>
+          </label>
+          <p class="memory-form-error" id="journal-form-error" role="alert"></p>
+          <button class="cta gold-btn full" id="journal-save" type="submit">SAVE TRAINING LOG <span>↗</span></button>
+        </form>
+        <p class="private-storage-note"><i></i> 日志和图片会自动保存在当前设备。编辑日志时，新选的图片会追加到原记录中。</p>
+      </div>
+    </section>
+
     <section class="letter-section" id="letter">
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">04 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">06 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -223,7 +365,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">05 · BEFORE TAKEOFF</p>
+          <p class="micro gold">07 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -239,7 +381,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">06 · FLIGHT RECORDER</p>
+        <p class="micro gold">08 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
@@ -295,6 +437,20 @@
       <button class="cta ghost-light" id="seal-record">封存进飞行记录器 <span>→</span></button>
     </div>
     <div class="takeoff-progress"><i id="takeoff-progress"></i></div>
+  </div>
+
+
+  <div class="memory-lightbox" id="memory-lightbox" hidden>
+    <button class="memory-lightbox-close" id="memory-lightbox-close" type="button" aria-label="关闭">×</button>
+    <div class="memory-lightbox-inner">
+      <img id="memory-lightbox-image" alt="回忆照片">
+      <div class="memory-lightbox-caption">
+        <span id="memory-lightbox-meta"></span>
+        <strong id="memory-lightbox-title"></strong>
+        <p id="memory-lightbox-note"></p>
+        <button class="text-btn danger" id="memory-lightbox-delete" type="button" hidden>DELETE THIS PHOTO</button>
+      </div>
+    </div>
   </div>
 
   <audio id="bgm" src="bgm.mp3" loop preload="metadata"></audio>

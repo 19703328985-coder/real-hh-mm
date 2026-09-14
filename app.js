@@ -857,26 +857,62 @@ async function bootFlightGlobe() {
   world.add(routesGroup, markersGroup);
 
   const RADIUS = 1.12;
-  const globe = new THREE.Mesh(
-    new THREE.SphereGeometry(RADIUS, 64, 64),
-    new THREE.MeshPhongMaterial({ color: 0x071c2a, emissive: 0x02080d, shininess: 24, specular: 0x173b4f, transparent: true, opacity: 0.97 })
-  );
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.18;
+
+  // Blue Marble texture gives the globe a much more natural, daylight-Earth look.
+  // If the texture CDN is temporarily unavailable, the bright ocean fallback still keeps the globe usable.
+  const earthMaterial = new THREE.MeshPhongMaterial({
+    color: 0x7db9d3,
+    emissive: 0x07131a,
+    emissiveIntensity: 0.18,
+    shininess: 8,
+    specular: 0x7ea7b8
+  });
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), earthMaterial);
   world.add(globe);
 
+  const earthTextureUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.setCrossOrigin('anonymous');
+  textureLoader.load(earthTextureUrl, (texture) => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
+    earthMaterial.map = texture;
+    earthMaterial.color.setHex(0xffffff);
+    earthMaterial.needsUpdate = true;
+  }, undefined, () => {
+    console.warn('Earth texture unavailable; using bright fallback material.');
+  });
+
   const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(RADIUS * 1.055, 64, 64),
-    new THREE.MeshBasicMaterial({ color: 0x6cb5d8, transparent: true, opacity: 0.055, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+    new THREE.SphereGeometry(RADIUS * 1.07, 72, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0x78c8f0,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
   );
   world.add(atmosphere);
 
-  const ambient = new THREE.AmbientLight(0x7aa8c0, 0.72);
-  const key = new THREE.DirectionalLight(0xe8d8b8, 1.55);
-  key.position.set(-2.4, 1.6, 3.2);
-  const rim = new THREE.DirectionalLight(0x3d83aa, 0.9);
-  rim.position.set(2.2, -1.0, -2.5);
-  scene.add(ambient, key, rim);
+  const atmosphereEdge = new THREE.Mesh(
+    new THREE.SphereGeometry(RADIUS * 1.025, 72, 72),
+    new THREE.MeshPhongMaterial({ color: 0xbcecff, transparent: true, opacity: 0.055, side: THREE.FrontSide, depthWrite: false })
+  );
+  world.add(atmosphereEdge);
 
-  const gridMaterial = new THREE.LineBasicMaterial({ color: 0x45687b, transparent: true, opacity: 0.22 });
+  const hemi = new THREE.HemisphereLight(0xd8f3ff, 0x15202a, 1.75);
+  const sun = new THREE.DirectionalLight(0xfff2dc, 2.15);
+  sun.position.set(-3.6, 2.4, 4.5);
+  const fill = new THREE.DirectionalLight(0x8bd4ff, 0.8);
+  fill.position.set(2.2, 0.5, -2.8);
+  scene.add(hemi, sun, fill);
+
+  const gridMaterial = new THREE.LineBasicMaterial({ color: 0xc5e4f0, transparent: true, opacity: 0.055 });
   const grid = new THREE.Group();
   const latLonToVector = (lat, lon, radius = RADIUS) => {
     const phi = (90 - lat) * Math.PI / 180;
@@ -1135,3 +1171,644 @@ if (atlasSection) {
   }, { rootMargin: '500px 0px' });
   atlasBootObserver.observe(atlasSection);
 }
+
+/* =========================================================
+   V7 · PRIVATE MEMORY VAULT + PILOT TRAINING JOURNAL
+   IndexedDB keeps image-heavy data on the current device.
+   ========================================================= */
+const PRIVATE_DB_NAME = 'hh022-private-vault-v1';
+const PRIVATE_DB_VERSION = 1;
+const GALLERY_STORE = 'gallery';
+const JOURNAL_STORE = 'journal';
+
+const STARTER_GALLERY = WINDOW_MEMORIES.map((item, index) => ({
+  id: `starter-${index + 1}`,
+  source: 'starter',
+  image: item.image,
+  title: item.title,
+  note: item.text,
+  place: index === 0 ? 'CADET DAYS' : index === 1 ? 'HANGAR' : 'US',
+  date: '',
+  meta: item.meta || ''
+}));
+
+let privateDbPromise = null;
+function openPrivateDb() {
+  if (privateDbPromise) return privateDbPromise;
+  privateDbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(PRIVATE_DB_NAME, PRIVATE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(GALLERY_STORE)) {
+        const store = db.createObjectStore(GALLERY_STORE, { keyPath: 'id' });
+        store.createIndex('date', 'date', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(JOURNAL_STORE)) {
+        const store = db.createObjectStore(JOURNAL_STORE, { keyPath: 'id' });
+        store.createIndex('date', 'date', { unique: false });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return privateDbPromise;
+}
+
+async function idbGetAll(storeName) {
+  const db = await openPrivateDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbPut(storeName, value) {
+  const db = await openPrivateDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).put(value);
+    tx.oncomplete = () => resolve(value);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbDelete(storeName, id) {
+  const db = await openPrivateDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function makeId(prefix) {
+  if (crypto?.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+function localISODate() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+function prettyDate(date) {
+  if (!date) return 'PRIVATE ARCHIVE';
+  const parts = date.split('-');
+  return parts.length === 3 ? `${parts[0]}.${parts[1]}.${parts[2]}` : date;
+}
+function monthLabel(date) {
+  if (!date) return 'UNDATED';
+  const [y, m] = date.split('-');
+  return `${y} · ${m}`;
+}
+
+async function optimizeImage(file, maxDimension = 1800, quality = 0.86) {
+  if (!file?.type?.startsWith('image/')) throw new Error('Not an image');
+  const url = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+    const largest = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, maxDimension / Math.max(1, largest));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#07121d';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    return blob || file;
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/* ---------- Memory Vault ---------- */
+const galleryStage = $('#gallery-stage');
+const galleryCount = $('#gallery-count');
+const galleryPosition = $('#gallery-position');
+const galleryPrev = $('#gallery-prev');
+const galleryNext = $('#gallery-next');
+const galleryUploadToggle = $('#gallery-upload-toggle');
+const galleryUploadShell = $('#gallery-upload-shell');
+const galleryUploadClose = $('#gallery-upload-close');
+const galleryUploadForm = $('#gallery-upload-form');
+const galleryDate = $('#gallery-date');
+const galleryPlace = $('#gallery-place');
+const galleryTitle = $('#gallery-title');
+const galleryNote = $('#gallery-note');
+const galleryFiles = $('#gallery-files');
+const galleryFormError = $('#gallery-form-error');
+const gallerySave = $('#gallery-save');
+const galleryExport = $('#gallery-export');
+const galleryImport = $('#gallery-import');
+const galleryImportFile = $('#gallery-import-file');
+const memoryLightbox = $('#memory-lightbox');
+const memoryLightboxClose = $('#memory-lightbox-close');
+const memoryLightboxImage = $('#memory-lightbox-image');
+const memoryLightboxMeta = $('#memory-lightbox-meta');
+const memoryLightboxTitle = $('#memory-lightbox-title');
+const memoryLightboxNote = $('#memory-lightbox-note');
+const memoryLightboxDelete = $('#memory-lightbox-delete');
+
+let galleryLocalRecords = [];
+let galleryItems = [];
+let galleryActive = 0;
+let galleryObjectUrls = [];
+let galleryPointerStart = null;
+let activeLightboxDelete = null;
+let activeLightboxObjectUrl = null;
+
+function clearGalleryObjectUrls() {
+  galleryObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  galleryObjectUrls = [];
+}
+function galleryImageUrl(item) {
+  if (item.source === 'starter') return item.image;
+  const url = URL.createObjectURL(item.blob);
+  galleryObjectUrls.push(url);
+  return url;
+}
+function renderGallery() {
+  if (!galleryStage) return;
+  clearGalleryObjectUrls();
+  galleryItems = [...STARTER_GALLERY, ...galleryLocalRecords.sort((a,b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''))];
+  galleryActive = Math.max(0, Math.min(galleryActive, galleryItems.length - 1));
+  galleryCount.textContent = `${String(galleryItems.length).padStart(2,'0')} MEMORIES`;
+  galleryPosition.textContent = `${String(galleryActive + 1).padStart(2,'0')} / ${String(galleryItems.length).padStart(2,'0')}`;
+  galleryStage.innerHTML = '';
+  galleryItems.forEach((item, index) => {
+    const card = document.createElement('article');
+    card.className = 'memory-card';
+    card.dataset.index = index;
+    const src = galleryImageUrl(item);
+    const meta = [prettyDate(item.date), item.place || item.meta || 'PRIVATE MEMORY'].filter(Boolean).join(' · ');
+    card.innerHTML = `
+      <img src="${src}" alt="${escapeHtml(item.title || '回忆照片')}">
+      ${item.source === 'local' ? '<span class="memory-card-local">LOCAL MEMORY</span>' : ''}
+      <div class="memory-card-copy">
+        <span>${escapeHtml(meta)}</span>
+        <strong>${escapeHtml(item.title || 'Untitled memory')}</strong>
+        <p>${escapeHtml(item.note || '')}</p>
+      </div>`;
+    card.addEventListener('click', () => {
+      if (galleryActive !== index) {
+        galleryActive = index;
+        updateGalleryDeck();
+      } else {
+        openMemoryLightbox(item, src, item.source === 'local' ? async () => {
+          if (!window.confirm('删除这张本机照片？')) return;
+          await idbDelete(GALLERY_STORE, item.id);
+          galleryLocalRecords = await idbGetAll(GALLERY_STORE);
+          closeMemoryLightbox();
+          galleryActive = Math.min(galleryActive, Math.max(0, STARTER_GALLERY.length + galleryLocalRecords.length - 1));
+          renderGallery();
+        } : null);
+      }
+    });
+    galleryStage.appendChild(card);
+  });
+  updateGalleryDeck();
+}
+function updateGalleryDeck() {
+  const cards = $$('.memory-card', galleryStage);
+  const compact = window.innerWidth < 650;
+  cards.forEach((card, index) => {
+    const offset = index - galleryActive;
+    const abs = Math.abs(offset);
+    const xStep = compact ? 46 : 53;
+    const rotate = compact ? 8 : 13;
+    const scale = abs === 0 ? 1 : Math.max(.72, .9 - abs * .08);
+    const z = abs === 0 ? 85 : Math.max(-140, 10 - abs * 55);
+    card.style.transform = `translate(-50%,-50%) translateX(${offset * xStep}%) translateZ(${z}px) rotateY(${offset * -rotate}deg) scale(${scale})`;
+    card.style.opacity = abs > 2 ? '0' : abs === 0 ? '1' : abs === 1 ? '.64' : '.24';
+    card.style.zIndex = String(20 - abs);
+    card.style.pointerEvents = abs > 2 ? 'none' : 'auto';
+    card.classList.toggle('active', offset === 0);
+  });
+  galleryPosition.textContent = `${String(galleryActive + 1).padStart(2,'0')} / ${String(Math.max(1,galleryItems.length)).padStart(2,'0')}`;
+}
+function moveGallery(direction) {
+  if (!galleryItems.length) return;
+  galleryActive = (galleryActive + direction + galleryItems.length) % galleryItems.length;
+  updateGalleryDeck();
+}
+function openMemoryLightbox(item, src, onDelete = null) {
+  if (activeLightboxObjectUrl && activeLightboxObjectUrl !== src) {
+    URL.revokeObjectURL(activeLightboxObjectUrl);
+    activeLightboxObjectUrl = null;
+  }
+  memoryLightboxImage.src = src;
+  memoryLightboxMeta.textContent = [prettyDate(item.date), item.place || item.meta || 'PRIVATE MEMORY'].filter(Boolean).join(' · ');
+  memoryLightboxTitle.textContent = item.title || 'Untitled memory';
+  memoryLightboxNote.textContent = item.note || '';
+  activeLightboxDelete = onDelete;
+  memoryLightboxDelete.hidden = !onDelete;
+  memoryLightbox.hidden = false;
+  document.body.classList.add('locked');
+}
+function closeMemoryLightbox() {
+  memoryLightbox.hidden = true;
+  memoryLightboxImage.removeAttribute('src');
+  activeLightboxDelete = null;
+  if (activeLightboxObjectUrl) URL.revokeObjectURL(activeLightboxObjectUrl);
+  activeLightboxObjectUrl = null;
+  document.body.classList.remove('locked');
+}
+
+galleryPrev?.addEventListener('click', () => moveGallery(-1));
+galleryNext?.addEventListener('click', () => moveGallery(1));
+galleryStage?.addEventListener('wheel', (event) => {
+  if (Math.abs(event.deltaX) < 10) return;
+  event.preventDefault();
+  moveGallery(event.deltaX > 0 ? 1 : -1);
+}, { passive: false });
+galleryStage?.addEventListener('pointerdown', (event) => { galleryPointerStart = { x:event.clientX, y:event.clientY }; });
+galleryStage?.addEventListener('pointerup', (event) => {
+  if (!galleryPointerStart) return;
+  const dx = event.clientX - galleryPointerStart.x;
+  const dy = event.clientY - galleryPointerStart.y;
+  galleryPointerStart = null;
+  if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy)) moveGallery(dx < 0 ? 1 : -1);
+});
+window.addEventListener('resize', updateGalleryDeck, { passive:true });
+
+galleryUploadToggle?.addEventListener('click', () => {
+  galleryUploadShell.hidden = false;
+  galleryDate.value ||= localISODate();
+  galleryUploadShell.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+});
+galleryUploadClose?.addEventListener('click', () => { galleryUploadShell.hidden = true; });
+galleryUploadForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const files = [...galleryFiles.files].slice(0, 12);
+  if (!files.length) {
+    galleryFormError.textContent = '先选择至少一张照片。';
+    return;
+  }
+  galleryFormError.textContent = '';
+  gallerySave.disabled = true;
+  gallerySave.firstChild.textContent = 'SAVING... ';
+  try {
+    for (let index = 0; index < files.length; index++) {
+      const blob = await optimizeImage(files[index], 1800, .86);
+      await idbPut(GALLERY_STORE, {
+        id: makeId('memory'),
+        source: 'local',
+        date: galleryDate.value || localISODate(),
+        place: galleryPlace.value.trim(),
+        title: galleryTitle.value.trim() || `Memory ${index + 1}`,
+        note: galleryNote.value.trim(),
+        createdAt: new Date().toISOString(),
+        originalName: files[index].name,
+        blob
+      });
+    }
+    galleryUploadForm.reset();
+    galleryDate.value = localISODate();
+    galleryUploadShell.hidden = true;
+    galleryLocalRecords = await idbGetAll(GALLERY_STORE);
+    galleryActive = STARTER_GALLERY.length;
+    renderGallery();
+  } catch (error) {
+    console.warn(error);
+    galleryFormError.textContent = '保存失败。可以少选几张或换一张尺寸更小的图片再试。';
+  } finally {
+    gallerySave.disabled = false;
+    gallerySave.firstChild.textContent = 'SAVE TO MEMORY VAULT ';
+  }
+});
+memoryLightboxClose?.addEventListener('click', closeMemoryLightbox);
+memoryLightbox?.addEventListener('click', (event) => { if (event.target === memoryLightbox) closeMemoryLightbox(); });
+memoryLightboxDelete?.addEventListener('click', () => activeLightboxDelete?.());
+
+/* ---------- Pilot Training Journal ---------- */
+const journalDateList = $('#journal-date-list');
+const journalEmptyIndex = $('#journal-empty-index');
+const journalReaderEmpty = $('#journal-reader-empty');
+const journalEntryView = $('#journal-entry-view');
+const journalViewDate = $('#journal-view-date');
+const journalViewTitle = $('#journal-view-title');
+const journalViewTags = $('#journal-view-tags');
+const journalViewNote = $('#journal-view-note');
+const journalViewLesson = $('#journal-view-lesson');
+const journalViewPhotos = $('#journal-view-photos');
+const journalPrev = $('#journal-prev');
+const journalNext = $('#journal-next');
+const journalPagePosition = $('#journal-page-position');
+const journalEdit = $('#journal-edit');
+const journalDelete = $('#journal-delete');
+const journalNew = $('#journal-new');
+const journalFormShell = $('#journal-form-shell');
+const journalFormClose = $('#journal-form-close');
+const journalForm = $('#journal-form');
+const journalFormTitle = $('#journal-form-title');
+const journalDate = $('#journal-date');
+const journalStage = $('#journal-stage');
+const journalAircraft = $('#journal-aircraft');
+const journalHours = $('#journal-hours');
+const journalMood = $('#journal-mood');
+const journalTitle = $('#journal-title');
+const journalNote = $('#journal-note');
+const journalLesson = $('#journal-lesson');
+const journalFiles = $('#journal-files');
+const journalFormError = $('#journal-form-error');
+const journalSave = $('#journal-save');
+const journalStatCount = $('#journal-stat-count');
+const journalStatHours = $('#journal-stat-hours');
+const journalStatLatest = $('#journal-stat-latest');
+
+let journalRecords = [];
+let selectedJournalId = null;
+let editingJournalId = null;
+let journalViewObjectUrls = [];
+
+function clearJournalViewUrls() {
+  journalViewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  journalViewObjectUrls = [];
+}
+function sortedJournal() {
+  return [...journalRecords].sort((a,b) => (b.date || '').localeCompare(a.date || '') || (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+}
+function renderJournalIndex() {
+  const records = sortedJournal();
+  journalStatCount.textContent = records.length;
+  const hours = records.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+  journalStatHours.textContent = `${hours.toFixed(1)} H`;
+  journalStatLatest.textContent = records[0]?.date ? prettyDate(records[0].date) : '—';
+  journalEmptyIndex.hidden = records.length > 0;
+  journalDateList.innerHTML = '';
+  let lastMonth = '';
+  records.forEach((record) => {
+    const month = monthLabel(record.date);
+    if (month !== lastMonth) {
+      const label = document.createElement('div');
+      label.className = 'journal-month';
+      label.textContent = month;
+      journalDateList.appendChild(label);
+      lastMonth = month;
+    }
+    const [year='',monthPart='',day=''] = (record.date || '').split('-');
+    const button = document.createElement('button');
+    button.className = 'journal-date-button';
+    button.type = 'button';
+    button.dataset.id = record.id;
+    button.innerHTML = `<time>${escapeHtml(day || '--')}.${escapeHtml(monthPart || '--')}</time><div><strong>${escapeHtml(record.title || 'Training log')}</strong><span>${escapeHtml(record.stage || '')}${record.aircraft ? ` · ${escapeHtml(record.aircraft)}` : ''}</span></div>`;
+    button.classList.toggle('active', record.id === selectedJournalId);
+    button.addEventListener('click', () => selectJournal(record.id));
+    journalDateList.appendChild(button);
+  });
+  if (!selectedJournalId && records[0]) selectedJournalId = records[0].id;
+  if (selectedJournalId && !records.some(r => r.id === selectedJournalId)) selectedJournalId = records[0]?.id || null;
+  renderJournalReader();
+}
+function renderJournalReader() {
+  clearJournalViewUrls();
+  const records = sortedJournal();
+  const record = records.find((item) => item.id === selectedJournalId);
+  journalReaderEmpty.hidden = !!record;
+  journalEntryView.hidden = !record;
+  if (!record) return;
+  journalViewDate.textContent = prettyDate(record.date);
+  journalViewTitle.textContent = record.title || 'Training log';
+  journalViewTags.innerHTML = [
+    record.stage,
+    record.aircraft,
+    Number(record.hours) ? `${Number(record.hours).toFixed(1)} H` : '',
+    record.mood ? `MOOD · ${record.mood}` : ''
+  ].filter(Boolean).map((tag, index, array) => `<span class="${index === array.length - 1 && record.mood ? 'mood' : ''}">${escapeHtml(tag)}</span>`).join('');
+  journalViewNote.textContent = record.note || '—';
+  journalViewLesson.textContent = record.lesson || '这一天还没有单独写下经验教训。';
+  journalViewPhotos.innerHTML = '';
+  (record.photos || []).forEach((photo, index) => {
+    const url = URL.createObjectURL(photo.blob || photo);
+    journalViewObjectUrls.push(url);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.innerHTML = `<img src="${url}" alt="训练日志照片 ${index + 1}">`;
+    button.addEventListener('click', () => {
+      openMemoryLightbox({ date:record.date, place:record.stage, title:record.title, note:record.note }, url, null);
+    });
+    journalViewPhotos.appendChild(button);
+  });
+  const idx = records.findIndex((item) => item.id === record.id);
+  journalPagePosition.textContent = `${String(idx + 1).padStart(2,'0')} / ${String(records.length).padStart(2,'0')}`;
+  journalPrev.disabled = idx <= 0;
+  journalNext.disabled = idx >= records.length - 1;
+  $$('.journal-date-button', journalDateList).forEach((button) => button.classList.toggle('active', button.dataset.id === record.id));
+}
+function selectJournal(id) {
+  selectedJournalId = id;
+  renderJournalReader();
+  const button = $(`.journal-date-button[data-id="${CSS.escape(id)}"]`, journalDateList);
+  button?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'nearest', inline:'nearest' });
+}
+function openJournalForm(record = null) {
+  editingJournalId = record?.id || null;
+  journalFormTitle.textContent = record ? '编辑这篇训练日志' : '记录今天的训练';
+  journalDate.value = record?.date || localISODate();
+  journalStage.value = record?.stage || '基础训练';
+  journalAircraft.value = record?.aircraft || '';
+  journalHours.value = record?.hours || '';
+  journalMood.value = record?.mood || '平静';
+  journalTitle.value = record?.title || '';
+  journalNote.value = record?.note || '';
+  journalLesson.value = record?.lesson || '';
+  journalFiles.value = '';
+  journalFormError.textContent = '';
+  journalFormShell.hidden = false;
+  journalFormShell.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'center' });
+}
+function closeJournalForm() {
+  journalFormShell.hidden = true;
+  editingJournalId = null;
+}
+
+journalNew?.addEventListener('click', () => openJournalForm());
+journalFormClose?.addEventListener('click', closeJournalForm);
+journalEdit?.addEventListener('click', () => {
+  const record = journalRecords.find((item) => item.id === selectedJournalId);
+  if (record) openJournalForm(record);
+});
+journalDelete?.addEventListener('click', async () => {
+  if (!selectedJournalId || !window.confirm('删除这篇训练日志？')) return;
+  await idbDelete(JOURNAL_STORE, selectedJournalId);
+  journalRecords = await idbGetAll(JOURNAL_STORE);
+  selectedJournalId = sortedJournal()[0]?.id || null;
+  renderJournalIndex();
+});
+journalPrev?.addEventListener('click', () => {
+  const records = sortedJournal();
+  const idx = records.findIndex((item) => item.id === selectedJournalId);
+  if (idx > 0) selectJournal(records[idx - 1].id);
+});
+journalNext?.addEventListener('click', () => {
+  const records = sortedJournal();
+  const idx = records.findIndex((item) => item.id === selectedJournalId);
+  if (idx >= 0 && idx < records.length - 1) selectJournal(records[idx + 1].id);
+});
+
+journalForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!journalDate.value || !journalTitle.value.trim() || !journalNote.value.trim()) {
+    journalFormError.textContent = '日期、标题和今天的记录需要填写。';
+    return;
+  }
+  journalFormError.textContent = '';
+  journalSave.disabled = true;
+  journalSave.firstChild.textContent = 'SAVING... ';
+  try {
+    const existing = journalRecords.find((item) => item.id === editingJournalId);
+    const photos = [...(existing?.photos || [])];
+    const files = [...journalFiles.files].slice(0, 6);
+    for (const file of files) {
+      const blob = await optimizeImage(file, 1600, .84);
+      photos.push({ name:file.name, type:blob.type || file.type, blob });
+    }
+    const record = {
+      id: editingJournalId || makeId('journal'),
+      date: journalDate.value,
+      stage: journalStage.value,
+      aircraft: journalAircraft.value.trim(),
+      hours: Number(journalHours.value) || 0,
+      mood: journalMood.value,
+      title: journalTitle.value.trim(),
+      note: journalNote.value.trim(),
+      lesson: journalLesson.value.trim(),
+      photos,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await idbPut(JOURNAL_STORE, record);
+    journalRecords = await idbGetAll(JOURNAL_STORE);
+    selectedJournalId = record.id;
+    closeJournalForm();
+    renderJournalIndex();
+    $('#journal-reader')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block:'center' });
+  } catch (error) {
+    console.warn(error);
+    journalFormError.textContent = '保存失败。图片很多时，可以减少几张后再试。';
+  } finally {
+    journalSave.disabled = false;
+    journalSave.firstChild.textContent = 'SAVE TRAINING LOG ';
+  }
+});
+
+/* ---------- Portable private archive backup ---------- */
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+function dataUrlToBlob(dataUrl) {
+  const [head, body] = String(dataUrl).split(',');
+  const match = /data:([^;]+);base64/.exec(head || '');
+  const type = match?.[1] || 'image/jpeg';
+  const binary = atob(body || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+async function exportPrivateArchive() {
+  const gallery = await idbGetAll(GALLERY_STORE);
+  const journal = await idbGetAll(JOURNAL_STORE);
+  const galleryPortable = [];
+  for (const item of gallery) galleryPortable.push({ ...item, blob: await blobToDataUrl(item.blob) });
+  const journalPortable = [];
+  for (const item of journal) {
+    const photos = [];
+    for (const photo of item.photos || []) photos.push({ ...photo, blob: await blobToDataUrl(photo.blob || photo) });
+    journalPortable.push({ ...item, photos });
+  }
+  const payload = {
+    kind: 'HH022_PRIVATE_ARCHIVE',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    gallery: galleryPortable,
+    journal: journalPortable,
+    flights: readLocalFlights(),
+    wish: localStorage.getItem(STORAGE_KEY) || null
+  };
+  const blob = new Blob([JSON.stringify(payload)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `hh022-private-archive-${localISODate()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function importPrivateArchive(file) {
+  const payload = JSON.parse(await file.text());
+  if (payload?.kind !== 'HH022_PRIVATE_ARCHIVE') throw new Error('Unknown archive');
+  for (const item of payload.gallery || []) {
+    if (!item?.id || !item?.blob) continue;
+    await idbPut(GALLERY_STORE, { ...item, source:'local', blob:dataUrlToBlob(item.blob) });
+  }
+  for (const item of payload.journal || []) {
+    if (!item?.id) continue;
+    const photos = (item.photos || []).map((photo) => ({ ...photo, blob:dataUrlToBlob(photo.blob) }));
+    await idbPut(JOURNAL_STORE, { ...item, photos });
+  }
+  if (Array.isArray(payload.flights)) {
+    localFlights = payload.flights;
+    saveLocalFlights();
+    renderAtlas();
+  }
+  if (payload.wish) localStorage.setItem(STORAGE_KEY, payload.wish);
+  galleryLocalRecords = await idbGetAll(GALLERY_STORE);
+  journalRecords = await idbGetAll(JOURNAL_STORE);
+  renderGallery();
+  renderJournalIndex();
+}
+
+galleryExport?.addEventListener('click', async () => {
+  galleryExport.disabled = true;
+  try { await exportPrivateArchive(); }
+  catch (error) { console.warn(error); window.alert('导出失败，请稍后再试。'); }
+  finally { galleryExport.disabled = false; }
+});
+galleryImport?.addEventListener('click', () => galleryImportFile.click());
+galleryImportFile?.addEventListener('change', async () => {
+  const file = galleryImportFile.files?.[0];
+  if (!file) return;
+  try {
+    await importPrivateArchive(file);
+    window.alert('私人档案已导入。');
+  } catch (error) {
+    console.warn(error);
+    window.alert('这不是可识别的 HH022 私人档案。');
+  } finally {
+    galleryImportFile.value = '';
+  }
+});
+
+async function initPrivateVault() {
+  if (!('indexedDB' in window)) {
+    galleryFormError.textContent = '当前浏览器不支持本机照片数据库。请使用最新版 Safari / Chrome。';
+    journalFormError.textContent = '当前浏览器不支持本机日志数据库。请使用最新版 Safari / Chrome。';
+    return;
+  }
+  try {
+    galleryLocalRecords = await idbGetAll(GALLERY_STORE);
+    journalRecords = await idbGetAll(JOURNAL_STORE);
+    galleryDate.value = localISODate();
+    journalDate.value = localISODate();
+    renderGallery();
+    renderJournalIndex();
+  } catch (error) {
+    console.warn('Private vault init failed:', error);
+  }
+}
+initPrivateVault();
