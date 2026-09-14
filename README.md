@@ -1,41 +1,33 @@
-# HH022 · V8 Flight Life OS
+# HH022 V9 · PLAUD × PERSONAL BLACK BOX
 
-这版是在 V7 基础上的长期成长版，保留：
-- 真实 3D 地球 + 航班 / 机型记录
-- MEMORY VAULT 私人照片舱
-- PILOT TRAINING JOURNAL 学飞日志
-- 音乐、生日信、愿望黑匣子
+这一版把 PLAUD 作为现实世界里的“实体黑匣子”，和 HH022 的学飞日志、3D 地球、人生星图、勋章系统真正串起来。
 
-新增并融合 5 个功能：
+> **PLAUD 负责记录现实。HH022 负责收藏人生。**
 
-## 1. FLIGHT LIFE CONSTELLATION · 飞行人生星图
-把航班、训练日志、带日期的私人照片以及 21→22 的时间节点按时间连接成星图。
-点击星星会跳回对应的航班、日志、照片或时间轴。
+## V9 新增
 
-## 2. GROWTH COCKPIT · 成长仪表盘
-用真实数据统计训练小时、机型、机场和日志天数。
-成长百分比只依据 6 个明确里程碑；已在日志中出现的“起落航线 / 单飞 / 转场 / 仪表”等会自动点亮，其余可以本人手动标记。
+- **IMPORT FROM PLAUD**：导入 PLAUD 导出的 MP3 / WAV / M4A / WEBM 录音，以及 TXT / MD / SRT / VTT 转写与总结。
+- **真实声音波形**：浏览器会分析音频并绘制可点击跳转的动态波形，不再使用普通 audio 播放器。
+- **FIRST SOLO BLACK BOX**：首次单飞且留有语音的日志会永久置顶。
+- **FIRST SOLO CVR 勋章**：首次单飞语音封存后自动解锁。
+- **声音地图**：训练日志填写机场代码并带语音时，3D 地球出现青绿色呼吸式语音坐标；点击坐标直接回到当天日志。
+- **会说话的人生星图**：有语音的训练记录成为会呼吸的 VOICE 星点。
+- **ONE LINE TO YOUR FUTURE SELF**：每篇训练可以留一句给未来自己的话；Life OS 会把过去的句子重新带回来。
+- **PLAUD 转写 / 总结归档**：和当天日志绑定，可以按日期翻阅。
+- **私人档案备份兼容**：录音、转写、总结、未来留言会跟随原有私人档案一起导出。
 
-## 3. WINGS & BADGES · 飞行勋章墙
-根据真实记录自动解锁，例如：第一篇日志、第一条航线、10 小时、首次单飞、夜航、3 种机型、5 个机场、10 程航班、第一次 CVR 语音记录。
+## 上传 GitHub
 
-## 4. COCKPIT VOICE RECORDER · 训练语音黑匣子
-在每篇学飞日志里可以直接调用麦克风录音，最长 3 分钟。
-录音会和该篇日志一起保存在浏览器 IndexedDB 中，也会包含在“导出私人档案”的备份里。
+如果 V8.1 已经正常在线，这次只需要覆盖三个文件：
 
-## 5. INNER WEATHER · 飞行情绪气象图
-每篇训练日志新增 INNER WEATHER：CAVOK / CLEAR / CLOUDY / CROSSWIND / TURBULENCE / STORM / AFTER RAIN。
-Flight Life OS 会自动按月份生成年度内心天气图。
+- `index.html`
+- `style.css`
+- `app.js`
 
-## 更新到 GitHub
-只需要覆盖仓库根目录的：
-- index.html
-- style.css
-- app.js
+图片、`nightflight.png`、`bgm.mp3` 都不用重新上传。
 
-图片和 bgm.mp3 没变，不需要重新上传。
-Cloudflare Pages 会自动部署。
+建议 Commit：`Upgrade to V9 PLAUD Personal Black Box`
 
-## 数据存储
-用户新增的航班保存在 localStorage；照片、训练日志、日志照片和语音保存在 IndexedDB。
-“导出私人档案”现在会同时备份照片、训练日志、语音、航班、里程碑和生日愿望。
+## 关于存储
+
+V9 仍是纯静态 Cloudflare Pages。PLAUD 文件、照片和日志保存在当前浏览器的 IndexedDB，不会自动上传到公共服务器。请定期使用网站里的“导出私人档案”进行备份。

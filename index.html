@@ -7,8 +7,8 @@
   <title>HH022 · 飞往 22 岁</title>
   <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=8.1">
-  <meta name="hh022-version" content="8.0">
+  <link rel="stylesheet" href="style.css?v=9.0">
+  <meta name="hh022-version" content="9.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -55,6 +55,7 @@
       <a href="#atlas">ATLAS</a>
       <a href="#gallery">MEMORIES</a>
       <a href="#journal">JOURNAL</a>
+      <a href="#plaud">BLACK BOX</a>
       <a href="#life-os">LIFE OS</a>
       <a href="#letter">LETTER</a>
     </nav>
@@ -309,9 +310,21 @@
               <p id="journal-view-lesson"></p>
             </div>
             <div class="journal-photo-grid" id="journal-view-photos"></div>
+            <div class="journal-rich-block plaud-transcript-block" id="journal-transcript-block" hidden>
+              <span>PLAUD TRANSCRIPT</span>
+              <p id="journal-view-transcript"></p>
+            </div>
+            <div class="journal-rich-block plaud-summary-block" id="journal-summary-block" hidden>
+              <span>PLAUD SUMMARY</span>
+              <p id="journal-view-summary"></p>
+            </div>
+            <blockquote class="future-self-quote" id="journal-future-block" hidden>
+              <span>ONE LINE TO YOUR FUTURE SELF</span>
+              <p id="journal-view-future"></p>
+            </blockquote>
             <div class="journal-voice-playback" id="journal-voice-playback" hidden>
-              <div><span>COCKPIT VOICE RECORDER</span><strong>那一天的声音</strong></div>
-              <audio id="journal-view-audio" controls preload="metadata"></audio>
+              <div class="voice-playback-head"><div><span>COCKPIT VOICE RECORDER</span><strong id="journal-voice-label">那一天的声音</strong></div><em id="journal-voice-source">HH022 CVR</em></div>
+              <div class="waveform-player" id="journal-waveform-player"></div>
             </div>
             <div class="journal-reader-actions">
               <button class="text-btn" id="journal-edit" type="button">EDIT ENTRY</button>
@@ -330,12 +343,14 @@
           <label>DATE<input id="journal-date" type="date" required></label>
           <label>TRAINING STAGE<select id="journal-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>夜航</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
           <label>ACT / AIRCRAFT<input id="journal-aircraft" type="text" maxlength="30" placeholder="C172S / DA40 / 模拟机"></label>
+          <label>LOCATION / AIRPORT<input id="journal-location" list="airport-list" type="text" maxlength="40" placeholder="XUZ / 徐州观音机场"></label>
           <label>DURATION (H)<input id="journal-hours" type="number" min="0" max="24" step="0.1" placeholder="1.5"></label>
           <label>MOOD<select id="journal-mood"><option>平静</option><option>兴奋</option><option>紧张</option><option>挫败</option><option>突破</option><option>疲惫</option><option>很有成就感</option></select></label>
           <label>INNER WEATHER<select id="journal-weather"><option value="CAVOK">CAVOK · 状态很好</option><option value="CLEAR">CLEAR · 清朗</option><option value="CLOUDY">CLOUDY · 有点迷茫</option><option value="CROSSWIND">CROSSWIND · 有挑战</option><option value="TURBULENCE">TURBULENCE · 起伏很大</option><option value="STORM">STORM · 很难熬</option><option value="AFTER RAIN">AFTER RAIN · 熬过去了</option></select></label>
           <label class="wide">TITLE<input id="journal-title" type="text" maxlength="60" placeholder="例如：第一次独立完成稳定进近" required></label>
           <label class="full">TODAY'S NOTE<textarea id="journal-note" maxlength="1600" rows="7" placeholder="今天发生了什么？哪些动作比上次更稳定？当时是什么感受？" required></textarea></label>
           <label class="full">LESSON LEARNED<textarea id="journal-lesson" maxlength="1000" rows="5" placeholder="今天最值得带走的一条经验 / 下次训练前提醒自己的事。"></textarea></label>
+          <label class="full future-self-field">ONE LINE TO YOUR FUTURE SELF<input id="journal-future-line" type="text" maxlength="160" placeholder="如果几年后的自己重新听到今天，你想留下一句什么？"></label>
           <label class="memory-file-drop full">
             <input id="journal-files" type="file" accept="image/*" multiple>
             <span>ADD TRAINING PHOTOS</span>
@@ -359,10 +374,67 @@
       </div>
     </section>
 
+
+    <section class="section plaud-section" id="plaud">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">06 · PLAUD × HH022</p>
+          <h3>把现实里的声音，<br>收进你的私人黑匣子。</h3>
+        </div>
+        <p>PLAUD 负责把训练后的声音、转写和总结带回来；HH022 把它们和日期、机型、机场、心情、照片与成长轨迹放在一起。以后再听见的，不只是录音，而是当时那个正在学会飞行的自己。</p>
+      </div>
+
+      <article class="plaud-pledge reveal">
+        <div class="plaud-device-mark" aria-hidden="true"><i></i><span>REC</span></div>
+        <div>
+          <span>PERSONAL BLACK BOX · HH022</span>
+          <h4>PLAUD 负责记录现实。<br><em>HH022 负责收藏人生。</em></h4>
+          <p>今年送你的，不只是一个录音设备。它会成为这本飞行日志在现实世界里的“黑匣子钥匙”。</p>
+        </div>
+      </article>
+
+      <div class="plaud-layout">
+        <article class="plaud-import-card reveal">
+          <div class="blackbox-card-head"><div><span>IMPORT FROM PLAUD</span><strong>归档一次真实的飞行复盘</strong></div><span>MP3 · WAV · M4A · TXT · MD · SRT</span></div>
+          <form class="plaud-import-form" id="plaud-import-form">
+            <label>DATE<input id="plaud-date" type="date" required></label>
+            <label>LOCATION / AIRPORT<input id="plaud-location" list="airport-list" type="text" maxlength="40" placeholder="XUZ / 徐州观音机场"></label>
+            <label>TRAINING STAGE<select id="plaud-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>夜航</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
+            <label>ACT / AIRCRAFT<input id="plaud-aircraft" type="text" maxlength="30" placeholder="C172S / DA40"></label>
+            <label>DURATION (H)<input id="plaud-hours" type="number" min="0" max="24" step="0.1" placeholder="1.5"></label>
+            <label>MOOD<select id="plaud-mood"><option>平静</option><option>兴奋</option><option>紧张</option><option>挫败</option><option>突破</option><option>疲惫</option><option>很有成就感</option></select></label>
+            <label>INNER WEATHER<select id="plaud-weather"><option value="CAVOK">CAVOK · 状态很好</option><option value="CLEAR">CLEAR · 清朗</option><option value="CLOUDY">CLOUDY · 有点迷茫</option><option value="CROSSWIND">CROSSWIND · 有挑战</option><option value="TURBULENCE">TURBULENCE · 起伏很大</option><option value="STORM">STORM · 很难熬</option><option value="AFTER RAIN">AFTER RAIN · 熬过去了</option></select></label>
+            <label class="wide">TITLE<input id="plaud-title" type="text" maxlength="60" placeholder="例如：第一次单飞后的复盘" required></label>
+            <label class="plaud-file-drop full"><input id="plaud-audio" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.webm"><span>01 · PLAUD AUDIO</span><strong>选择导出的录音</strong><small id="plaud-audio-name">MP3 / WAV / M4A / WEBM</small></label>
+            <label class="plaud-file-drop"><input id="plaud-transcript" type="file" accept=".txt,.md,.srt,.vtt,text/plain,text/markdown"><span>02 · TRANSCRIPT</span><strong>选择转写文件</strong><small id="plaud-transcript-name">TXT / MD / SRT / VTT · 可选</small></label>
+            <label class="plaud-file-drop"><input id="plaud-summary" type="file" accept=".txt,.md,text/plain,text/markdown"><span>03 · SUMMARY</span><strong>选择 PLAUD 总结</strong><small id="plaud-summary-name">TXT / MD · 可选</small></label>
+            <label class="full future-self-field">ONE LINE TO YOUR FUTURE SELF<input id="plaud-future-line" type="text" maxlength="160" placeholder="例如：今天还是很怕侧风，但别忘了，我没有放弃。"></label>
+            <p class="memory-form-error" id="plaud-form-error" role="alert"></p>
+            <button class="cta gold-btn full" id="plaud-import-save" type="submit">ARCHIVE TO HH022 <span>↗</span></button>
+          </form>
+          <p class="private-storage-note"><i></i> 导入的是你从 PLAUD 导出的文件副本，保存在这台设备的 HH022 私人数据库里；不会自动上传到公共服务器。</p>
+        </article>
+
+        <aside class="blackbox-archive reveal delay-1">
+          <div class="blackbox-card-head"><div><span>VOICE ARCHIVE</span><strong>会说话的飞行档案</strong></div><span id="voice-archive-count">00 RECORDS</span></div>
+          <article class="first-solo-box" id="first-solo-box" hidden>
+            <div class="solo-box-kicker"><i></i> FIRST SOLO · PERMANENT RECORD</div>
+            <h4 id="first-solo-title">第一次单飞</h4>
+            <p id="first-solo-meta"></p>
+            <div class="waveform-player solo-waveform" id="first-solo-waveform"></div>
+            <blockquote id="first-solo-future"></blockquote>
+            <button class="text-btn" id="first-solo-open" type="button">OPEN FIRST SOLO LOG →</button>
+          </article>
+          <div class="voice-archive-list" id="voice-archive-list"></div>
+          <div class="voice-archive-empty" id="voice-archive-empty"><span>NO VOICE PRESERVED YET</span><strong>下一次训练结束，让 PLAUD 留住当时的声音。</strong></div>
+        </aside>
+      </div>
+    </section>
+
     <section class="section life-os-section" id="life-os">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">06 · FLIGHT LIFE OS</p>
+          <p class="micro gold">07 · FLIGHT LIFE OS</p>
           <h3>过去有轨迹，<br>现在有仪表，未来有航向。</h3>
         </div>
         <p>这里把航班、学飞日志、照片和训练状态真正串在一起。它不是一个“完成度评分”，而是一块会随着真实记录慢慢点亮的私人驾驶舱。</p>
@@ -376,7 +448,7 @@
             <div class="constellation-tooltip" id="constellation-tooltip" hidden></div>
             <div class="constellation-empty" id="constellation-empty">第一条记录，会成为第一颗星。</div>
           </div>
-          <div class="constellation-legend"><span><i class="star-flight"></i> FLIGHT</span><span><i class="star-journal"></i> TRAINING</span><span><i class="star-memory"></i> MEMORY</span><span>MOVE · TAP A STAR</span></div>
+          <div class="constellation-legend"><span><i class="star-flight"></i> FLIGHT</span><span><i class="star-journal"></i> TRAINING</span><span><i class="star-memory"></i> MEMORY</span><span><i class="star-voice"></i> VOICE</span><span>MOVE · TAP A STAR</span></div>
         </article>
 
         <article class="cockpit-card reveal delay-1">
@@ -407,13 +479,19 @@
           <div class="weather-summary" id="weather-summary">写下训练日志后，这里会慢慢出现属于这一年的“内心天气”。</div>
         </article>
       </div>
+
+      <article class="future-echo-card reveal" id="future-echo-card">
+        <div><span>FROM YOUR PAST SELF</span><strong id="future-echo-kicker">A MESSAGE IS WAITING</strong></div>
+        <blockquote id="future-echo-text">写下一句给未来的自己。等飞得更远以后，它会从过去回来找你。</blockquote>
+        <button class="text-btn" id="future-echo-open" type="button" hidden>OPEN THAT DAY →</button>
+      </article>
     </section>
 
     <section class="letter-section" id="letter">
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">07 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">08 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -433,7 +511,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">08 · BEFORE TAKEOFF</p>
+          <p class="micro gold">09 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -449,7 +527,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">09 · FLIGHT RECORDER</p>
+        <p class="micro gold">10 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
@@ -521,7 +599,7 @@
     </div>
   </div>
 
-  <audio id="bgm" src="bgm.mp3?v=8.0" loop preload="metadata"></audio>
-  <script src="app.js?v=8.1"></script>
+  <audio id="bgm" src="bgm.mp3?v=9.0" loop preload="metadata"></audio>
+  <script src="app.js?v=9.0"></script>
 </body>
 </html>

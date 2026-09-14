@@ -585,7 +585,7 @@ function renderAtlas() {
   const records = getAllFlights();
   manifestCount.textContent = `${String(records.length).padStart(2, '0')} RECORD${records.length === 1 ? '' : 'S'}`;
   manifestEmpty.hidden = records.length > 0;
-  globeEmpty.hidden = records.length > 0;
+  globeEmpty.hidden = records.length > 0 || getVoiceMapRecords().length > 0;
 
   const airportCodes = new Set();
   let totalKm = 0;
@@ -784,7 +784,7 @@ clearLocalFlights?.addEventListener('click', () => {
 exportFlights?.addEventListener('click', () => {
   const archive = {
     format: 'HH022 PERSONAL FLIGHT LOGBOOK',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     records: localFlights
   };
@@ -1007,6 +1007,22 @@ async function bootFlightGlobe() {
     markersGroup.add(halo);
   }
 
+  function makeVoiceMarker(entry) {
+    const airport = entry.airport;
+    const pos = latLonToVector(airport.lat, airport.lon, RADIUS * 1.045);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.032, 20, 20), new THREE.MeshBasicMaterial({ color: 0x78eadc }));
+    core.position.copy(pos);
+    core.userData = { type:'voice', code:entry.code, airport, journalId:entry.journalId, record:entry.record };
+    markersGroup.add(core);
+    markerMeshes.push(core);
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.045, 0.070, 32), new THREE.MeshBasicMaterial({ color:0x78eadc, transparent:true, opacity:.58, side:THREE.DoubleSide, depthWrite:false }));
+    halo.position.copy(pos.clone().multiplyScalar(1.004));
+    halo.lookAt(new THREE.Vector3(0,0,0));
+    halo.userData.voicePulse = true;
+    markersGroup.add(halo);
+    pulses.push({ userData:{ voiceHalo:true, mesh:halo, phase:Math.random() } });
+  }
+
   function setFlights(records) {
     disposeGroup(routesGroup);
     disposeGroup(markersGroup);
@@ -1020,6 +1036,7 @@ async function bootFlightGlobe() {
       makeArc(record);
     });
     airports.forEach((airport, code) => makeMarker(code, airport));
+    getVoiceMapRecords().forEach((entry) => makeVoiceMarker(entry));
   }
 
   let focusAnimation = null;
@@ -1089,6 +1106,19 @@ async function bootFlightGlobe() {
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('click', (event) => {
+    if (moved) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(markerMeshes, false)[0];
+    const data = hit?.object?.userData;
+    if (data?.type === 'voice' && data.journalId) {
+      $('#journal')?.scrollIntoView({ behavior:reducedMotion ? 'auto' : 'smooth' });
+      setTimeout(() => selectJournal(data.journalId), reducedMotion ? 0 : 480);
+    }
+  });
   canvas.addEventListener('pointerleave', () => {
     if (!isDragging) tooltip.hidden = true;
   });
@@ -1111,7 +1141,11 @@ async function bootFlightGlobe() {
       return;
     }
     const data = hits[0].object.userData;
-    tooltip.innerHTML = `<b>${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.airport.name)}</span>`;
+    if (data.type === 'voice') {
+      tooltip.innerHTML = `<b>🎙 ${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.record?.title || 'VOICE FROM THIS PLACE')} · ${escapeHtml(prettyDate(data.record?.date))}</span>`;
+    } else {
+      tooltip.innerHTML = `<b>${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.airport.name)}</span>`;
+    }
     tooltip.style.left = `${event.clientX - rect.left}px`;
     tooltip.style.top = `${event.clientY - rect.top}px`;
     tooltip.hidden = false;
@@ -1144,6 +1178,13 @@ async function bootFlightGlobe() {
       world.quaternion.premultiply(q).normalize();
     }
     pulses.forEach((pulse) => {
+      if (pulse.userData?.voiceHalo) {
+        pulse.userData.phase = (pulse.userData.phase + dt * .7) % 1;
+        const scale = 1 + Math.sin(pulse.userData.phase * Math.PI * 2) * .16;
+        pulse.userData.mesh.scale.setScalar(scale);
+        pulse.userData.mesh.material.opacity = .34 + (Math.sin(pulse.userData.phase * Math.PI * 2) + 1) * .16;
+        return;
+      }
       pulse.userData.phase = (pulse.userData.phase + dt * pulse.userData.speed) % 1;
       pulse.position.copy(pulse.userData.curve.getPoint(pulse.userData.phase));
     });
@@ -1518,12 +1559,14 @@ const journalFormTitle = $('#journal-form-title');
 const journalDate = $('#journal-date');
 const journalStage = $('#journal-stage');
 const journalAircraft = $('#journal-aircraft');
+const journalLocation = $('#journal-location');
 const journalHours = $('#journal-hours');
 const journalMood = $('#journal-mood');
 const journalWeather = $('#journal-weather');
 const journalTitle = $('#journal-title');
 const journalNote = $('#journal-note');
 const journalLesson = $('#journal-lesson');
+const journalFutureLine = $('#journal-future-line');
 const journalFiles = $('#journal-files');
 const journalFormError = $('#journal-form-error');
 const journalSave = $('#journal-save');
@@ -1534,7 +1577,15 @@ const journalVoiceStatus = $('#journal-voice-status');
 const journalVoiceTimer = $('#journal-voice-timer');
 const journalVoicePreview = $('#journal-voice-preview');
 const journalVoicePlayback = $('#journal-voice-playback');
-const journalViewAudio = $('#journal-view-audio');
+const journalWaveformPlayer = $('#journal-waveform-player');
+const journalVoiceLabel = $('#journal-voice-label');
+const journalVoiceSource = $('#journal-voice-source');
+const journalTranscriptBlock = $('#journal-transcript-block');
+const journalSummaryBlock = $('#journal-summary-block');
+const journalFutureBlock = $('#journal-future-block');
+const journalViewTranscript = $('#journal-view-transcript');
+const journalViewSummary = $('#journal-view-summary');
+const journalViewFuture = $('#journal-view-future');
 const journalStatCount = $('#journal-stat-count');
 const journalStatHours = $('#journal-stat-hours');
 const journalStatLatest = $('#journal-stat-latest');
@@ -1605,6 +1656,8 @@ function renderJournalReader() {
   const journalTags = [
     record.stage,
     record.aircraft,
+    record.location ? `LOC · ${record.location}` : '',
+    record.voiceSource === 'PLAUD' ? 'PLAUD · IMPORTED' : '',
     Number(record.hours) ? `${Number(record.hours).toFixed(1)} H` : '',
     record.mood ? `MOOD · ${record.mood}` : '',
     record.weather ? `INNER WEATHER · ${record.weather}` : ''
@@ -1624,14 +1677,20 @@ function renderJournalReader() {
     });
     journalViewPhotos.appendChild(button);
   });
+  journalTranscriptBlock.hidden = !record.transcript;
+  journalSummaryBlock.hidden = !record.summary;
+  journalFutureBlock.hidden = !record.futureLine;
+  if (record.transcript) journalViewTranscript.textContent = record.transcript;
+  if (record.summary) journalViewSummary.textContent = record.summary;
+  if (record.futureLine) journalViewFuture.textContent = `“${record.futureLine}”`;
   if (record.voice?.blob) {
-    const voiceUrl = URL.createObjectURL(record.voice.blob);
-    journalViewObjectUrls.push(voiceUrl);
-    journalViewAudio.src = voiceUrl;
     journalVoicePlayback.hidden = false;
+    journalVoiceLabel.textContent = record.voiceSource === 'PLAUD' ? 'PLAUD · 那一天的真实声音' : '那一天的声音';
+    journalVoiceSource.textContent = record.voiceSource === 'PLAUD' ? 'PLAUD IMPORT' : 'HH022 CVR';
+    renderWaveformPlayer(journalWaveformPlayer, record.voice.blob, { duration:record.voice.duration, urls:journalViewObjectUrls, label:record.title });
   } else {
-    journalViewAudio.removeAttribute('src');
     journalVoicePlayback.hidden = true;
+    journalWaveformPlayer.innerHTML = '';
   }
   const idx = records.findIndex((item) => item.id === record.id);
   journalPagePosition.textContent = `${String(idx + 1).padStart(2,'0')} / ${String(records.length).padStart(2,'0')}`;
@@ -1756,6 +1815,7 @@ function openJournalForm(record = null) {
   journalDate.value = record?.date || localISODate();
   journalStage.value = record?.stage || '基础训练';
   journalAircraft.value = record?.aircraft || '';
+  journalLocation.value = record?.location || '';
   journalHours.value = record?.hours || '';
   journalMood.value = record?.mood || '平静';
   journalWeather.value = record?.weather || 'CAVOK';
@@ -1763,6 +1823,7 @@ function openJournalForm(record = null) {
   journalTitle.value = record?.title || '';
   journalNote.value = record?.note || '';
   journalLesson.value = record?.lesson || '';
+  journalFutureLine.value = record?.futureLine || '';
   journalFiles.value = '';
   journalFormError.textContent = '';
   journalFormShell.hidden = false;
@@ -1826,6 +1887,7 @@ journalForm?.addEventListener('submit', async (event) => {
       date: journalDate.value,
       stage: journalStage.value,
       aircraft: journalAircraft.value.trim(),
+      location: journalLocation.value.trim(),
       hours: Number(journalHours.value) || 0,
       mood: journalMood.value,
       weather: journalWeather.value || 'CAVOK',
@@ -1833,6 +1895,10 @@ journalForm?.addEventListener('submit', async (event) => {
       title: journalTitle.value.trim(),
       note: journalNote.value.trim(),
       lesson: journalLesson.value.trim(),
+      futureLine: journalFutureLine.value.trim(),
+      transcript: existing?.transcript || '',
+      summary: existing?.summary || '',
+      voiceSource: journalVoiceBlob ? 'HH022 CVR' : (journalVoiceWasCleared ? '' : (existing?.voiceSource || '')),
       photos,
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1852,6 +1918,211 @@ journalForm?.addEventListener('submit', async (event) => {
     journalSave.firstChild.textContent = 'SAVE TRAINING LOG ';
   }
 });
+
+
+/* =========================================================
+   V9 · PLAUD × HH022 PERSONAL BLACK BOX
+   Import exported audio/transcripts, render real waveforms,
+   bind voices to journal / globe / constellation / badges.
+   ========================================================= */
+const plaudForm = $('#plaud-import-form');
+const plaudDate = $('#plaud-date');
+const plaudLocation = $('#plaud-location');
+const plaudStage = $('#plaud-stage');
+const plaudAircraft = $('#plaud-aircraft');
+const plaudHours = $('#plaud-hours');
+const plaudMood = $('#plaud-mood');
+const plaudWeather = $('#plaud-weather');
+const plaudTitle = $('#plaud-title');
+const plaudAudio = $('#plaud-audio');
+const plaudTranscript = $('#plaud-transcript');
+const plaudSummary = $('#plaud-summary');
+const plaudFutureLine = $('#plaud-future-line');
+const plaudFormError = $('#plaud-form-error');
+const plaudImportSave = $('#plaud-import-save');
+const plaudAudioName = $('#plaud-audio-name');
+const plaudTranscriptName = $('#plaud-transcript-name');
+const plaudSummaryName = $('#plaud-summary-name');
+const voiceArchiveCount = $('#voice-archive-count');
+const voiceArchiveList = $('#voice-archive-list');
+const voiceArchiveEmpty = $('#voice-archive-empty');
+const firstSoloBox = $('#first-solo-box');
+const firstSoloTitle = $('#first-solo-title');
+const firstSoloMeta = $('#first-solo-meta');
+const firstSoloWaveform = $('#first-solo-waveform');
+const firstSoloFuture = $('#first-solo-future');
+const firstSoloOpen = $('#first-solo-open');
+const futureEchoKicker = $('#future-echo-kicker');
+const futureEchoText = $('#future-echo-text');
+const futureEchoOpen = $('#future-echo-open');
+
+let blackBoxObjectUrls = [];
+function clearBlackBoxObjectUrls() {
+  blackBoxObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  blackBoxObjectUrls = [];
+}
+function resolveAirportFromLocation(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const code = raw.toUpperCase().slice(0,3);
+  if (AIRPORTS[code]) return { code, airport:AIRPORTS[code] };
+  const lower = raw.toLowerCase();
+  const entry = Object.entries(AIRPORTS).find(([key, airport]) => key.toLowerCase() === lower || airport.city.toLowerCase().includes(lower) || airport.name.toLowerCase().includes(lower) || lower.includes(airport.city.toLowerCase()));
+  return entry ? { code:entry[0], airport:entry[1] } : null;
+}
+function getVoiceMapRecords() {
+  if (typeof journalRecords === 'undefined') return [];
+  return journalRecords.filter((item) => item.voice?.blob && item.location).map((item) => {
+    const resolved = resolveAirportFromLocation(item.location);
+    return resolved ? { ...resolved, journalId:item.id, record:item } : null;
+  }).filter(Boolean);
+}
+function readAudioDuration(blob) {
+  return new Promise((resolve) => {
+    if (!blob) return resolve(0);
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio();
+    const done = (value=0) => { URL.revokeObjectURL(url); resolve(Number.isFinite(value) ? value : 0); };
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => done(audio.duration);
+    audio.onerror = () => done(0);
+    audio.src = url;
+  });
+}
+function cleanPlaudText(text) {
+  return String(text || '')
+    .replace(/^WEBVTT\s*/i,'')
+    .replace(/^\s*\d+\s*$/gm,'')
+    .replace(/^\s*\d{1,2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{1,2}:\d{2}:\d{2}[,.]\d{3}.*$/gm,'')
+    .replace(/^\s*\d{1,2}:\d{2}[,.]\d{3}\s*-->\s*\d{1,2}:\d{2}[,.]\d{3}.*$/gm,'')
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+function pickWavePeaks(buffer, bars=160) {
+  const data = buffer.getChannelData(0);
+  const size = Math.max(1, Math.floor(data.length / bars));
+  const peaks = [];
+  for (let i=0;i<bars;i++) {
+    let max=0;
+    const start=i*size, end=Math.min(data.length,start+size);
+    for(let j=start;j<end;j+=Math.max(1,Math.floor(size/40))) max=Math.max(max,Math.abs(data[j]));
+    peaks.push(Math.max(.025,max));
+  }
+  const maxPeak=Math.max(...peaks,.001);
+  return peaks.map(v=>v/maxPeak);
+}
+async function decodeWaveform(blob, bars=160) {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) throw new Error('No AudioContext');
+    const ctx = new AudioCtx();
+    const array = await blob.arrayBuffer();
+    const buffer = await ctx.decodeAudioData(array.slice(0));
+    const peaks = pickWavePeaks(buffer,bars);
+    await ctx.close?.();
+    return peaks;
+  } catch {
+    const seed = `${blob?.size || 1}-${blob?.type || 'audio'}`;
+    return Array.from({length:bars},(_,i)=>.14 + hash01(`${seed}-${i}`)*.86);
+  }
+}
+function drawWaveCanvas(canvas, peaks, progress=0) {
+  const rect=canvas.getBoundingClientRect();
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const width=Math.max(260,Math.round(rect.width||600)), height=Math.max(52,Math.round(rect.height||72));
+  if(canvas.width!==Math.round(width*dpr)||canvas.height!==Math.round(height*dpr)){canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}
+  const ctx=canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,width,height);
+  const count=peaks.length, gap=2.2, barW=Math.max(1,(width-gap*(count-1))/count);
+  const center=height/2;
+  peaks.forEach((v,i)=>{const h=Math.max(3,v*(height*.78));const x=i*(barW+gap);ctx.fillStyle=(i/count)<=progress?'rgba(205,183,143,.96)':'rgba(126,164,184,.28)';ctx.fillRect(x,center-h/2,barW,h);});
+  const x=Math.max(0,Math.min(width,width*progress));ctx.fillStyle='rgba(241,239,233,.92)';ctx.fillRect(x-0.5,5,1,height-10);
+}
+function renderWaveformPlayer(container, blob, options={}) {
+  if (!container || !blob) return;
+  const url=URL.createObjectURL(blob); (options.urls || blackBoxObjectUrls).push(url);
+  container.innerHTML=`<div class="wave-controls"><button type="button" class="wave-play" aria-label="播放/暂停">▶</button><span class="wave-time">00:00</span><strong>${escapeHtml(options.label || 'VOICE RECORD')}</strong><span class="wave-duration">${formatVoiceTime(options.duration || 0)}</span></div><canvas class="wave-canvas" aria-label="音频波形，可点击跳转"></canvas><audio preload="metadata" src="${url}"></audio>`;
+  const audio=$('audio',container), canvas=$('.wave-canvas',container), play=$('.wave-play',container), time=$('.wave-time',container), durationEl=$('.wave-duration',container);
+  let peaks=Array.from({length:120},(_,i)=>.12+hash01(`${blob.size}-${i}`)*.55);
+  const redraw=()=>drawWaveCanvas(canvas,peaks,audio.duration ? audio.currentTime/audio.duration : 0);
+  decodeWaveform(blob, window.innerWidth<650?90:150).then((data)=>{peaks=data;redraw();});
+  audio.addEventListener('loadedmetadata',()=>{durationEl.textContent=formatVoiceTime(audio.duration||options.duration);redraw();});
+  audio.addEventListener('timeupdate',()=>{time.textContent=formatVoiceTime(audio.currentTime);redraw();});
+  audio.addEventListener('play',()=>{play.textContent='❚❚';container.classList.add('playing');});
+  audio.addEventListener('pause',()=>{play.textContent='▶';container.classList.remove('playing');});
+  audio.addEventListener('ended',()=>{play.textContent='▶';container.classList.remove('playing');});
+  play.addEventListener('click',()=>audio.paused?audio.play().catch(()=>{}):audio.pause());
+  canvas.addEventListener('click',(event)=>{if(!audio.duration)return;const rect=canvas.getBoundingClientRect();audio.currentTime=Math.max(0,Math.min(audio.duration,(event.clientX-rect.left)/rect.width*audio.duration));});
+  if('ResizeObserver' in window)new ResizeObserver(redraw).observe(container);
+}
+function isSoloRecord(item) {
+  const corpus=journalSearchText(item);
+  return ['首次单飞','单飞','独飞','独立飞行','first solo','solo flight','solo'].some((word)=>corpus.includes(word.toLowerCase()));
+}
+function findFirstSoloVoiceRecord() {
+  return [...journalRecords].filter((item)=>item.voice?.blob && isSoloRecord(item)).sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0] || null;
+}
+function renderPlaudBlackBox() {
+  if (!voiceArchiveList) return;
+  clearBlackBoxObjectUrls();
+  const voices=[...journalRecords].filter((item)=>item.voice?.blob).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  voiceArchiveCount.textContent=`${String(voices.length).padStart(2,'0')} RECORD${voices.length===1?'':'S'}`;
+  voiceArchiveEmpty.hidden=voices.length>0;
+  voiceArchiveList.innerHTML='';
+  voices.forEach((item,index)=>{
+    const resolved=resolveAirportFromLocation(item.location);
+    const button=document.createElement('button');button.type='button';button.className='voice-archive-item';button.dataset.id=item.id;
+    button.innerHTML=`<span class="voice-index">${String(index+1).padStart(2,'0')}</span><div><span>${escapeHtml(prettyDate(item.date))}${resolved?` · ${escapeHtml(resolved.code)}`:''}</span><strong>${escapeHtml(item.title||'Voice record')}</strong><small>${escapeHtml(item.voiceSource==='PLAUD'?'PLAUD IMPORT':'HH022 CVR')} · ${formatVoiceTime(item.voice?.duration||0)}${item.futureLine?' · FUTURE LINE':''}</small></div><i>▶</i>`;
+    button.addEventListener('click',()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(item.id),reducedMotion?0:420);});
+    voiceArchiveList.appendChild(button);
+  });
+  const solo=findFirstSoloVoiceRecord();
+  firstSoloBox.hidden=!solo;
+  if(solo){
+    firstSoloTitle.textContent=solo.title||'FIRST SOLO';
+    const loc=resolveAirportFromLocation(solo.location);
+    firstSoloMeta.textContent=[prettyDate(solo.date),solo.aircraft,loc?.code||solo.location,formatVoiceTime(solo.voice?.duration)].filter(Boolean).join(' · ');
+    firstSoloFuture.textContent=solo.futureLine?`“${solo.futureLine}”`:'这一段声音会一直被置顶在这里。';
+    firstSoloWaveform.innerHTML='';
+    renderWaveformPlayer(firstSoloWaveform,solo.voice.blob,{duration:solo.voice.duration,urls:blackBoxObjectUrls,label:'FIRST SOLO CVR'});
+    firstSoloOpen.onclick=()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(solo.id),reducedMotion?0:420);};
+  }
+}
+function renderFutureEcho() {
+  if(!futureEchoText)return;
+  const candidates=[...journalRecords].filter((item)=>String(item.futureLine||'').trim()).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!candidates.length){futureEchoKicker.textContent='A MESSAGE IS WAITING';futureEchoText.textContent='写下一句给未来的自己。等飞得更远以后，它会从过去回来找你。';futureEchoOpen.hidden=true;return;}
+  const item=candidates[0];
+  const hoursAfter=journalRecords.filter((r)=>(r.date||'')>(item.date||'')).reduce((sum,r)=>sum+(Number(r.hours)||0),0);
+  futureEchoKicker.textContent=hoursAfter>0?`FROM YOU · ${hoursAfter.toFixed(1)} FLIGHT HOURS AGO`:`FROM YOU · ${prettyDate(item.date)}`;
+  futureEchoText.textContent=`“${item.futureLine}”`;
+  futureEchoOpen.hidden=false;futureEchoOpen.onclick=()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(item.id),reducedMotion?0:420);};
+}
+function syncPlaudFileLabels(){
+  if(plaudAudioName)plaudAudioName.textContent=plaudAudio.files?.[0]?.name||'MP3 / WAV / M4A / WEBM';
+  if(plaudTranscriptName)plaudTranscriptName.textContent=plaudTranscript.files?.[0]?.name||'TXT / MD / SRT / VTT · 可选';
+  if(plaudSummaryName)plaudSummaryName.textContent=plaudSummary.files?.[0]?.name||'TXT / MD · 可选';
+  const audio=plaudAudio.files?.[0]; if(audio && !plaudTitle.value.trim()) plaudTitle.value=audio.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').slice(0,60);
+}
+[plaudAudio,plaudTranscript,plaudSummary].forEach((input)=>input?.addEventListener('change',syncPlaudFileLabels));
+plaudForm?.addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  const audioFile=plaudAudio.files?.[0]||null, transcriptFile=plaudTranscript.files?.[0]||null, summaryFile=plaudSummary.files?.[0]||null;
+  if(!audioFile&&!transcriptFile&&!summaryFile){plaudFormError.textContent='至少选择一份 PLAUD 录音、转写或总结文件。';return;}
+  if(!plaudDate.value||!plaudTitle.value.trim()){plaudFormError.textContent='日期和标题需要填写。';return;}
+  plaudFormError.textContent='';plaudImportSave.disabled=true;plaudImportSave.firstChild.textContent='ARCHIVING... ';
+  try{
+    const transcript=transcriptFile?cleanPlaudText(await transcriptFile.text()):'';
+    const summary=summaryFile?cleanPlaudText(await summaryFile.text()):'';
+    const voice=audioFile?{blob:audioFile,duration:await readAudioDuration(audioFile),type:audioFile.type||'audio/mpeg',name:audioFile.name,source:'PLAUD'}:null;
+    const note=(summary||transcript||'来自 PLAUD 的一次飞行复盘。').slice(0,1600);
+    const lesson=(summary||'').slice(0,1000);
+    const record={id:makeId('journal'),date:plaudDate.value,stage:plaudStage.value,aircraft:plaudAircraft.value.trim(),location:plaudLocation.value.trim(),hours:Number(plaudHours.value)||0,mood:plaudMood.value,weather:plaudWeather.value||'CAVOK',voice,voiceSource:'PLAUD',title:plaudTitle.value.trim(),note,lesson,transcript,summary,futureLine:plaudFutureLine.value.trim(),photos:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    await idbPut(JOURNAL_STORE,record);journalRecords=await idbGetAll(JOURNAL_STORE);selectedJournalId=record.id;renderJournalIndex();renderPlaudBlackBox();refreshLifeOS();
+    plaudForm.reset();plaudDate.value=localISODate();syncPlaudFileLabels();
+    $('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(record.id),reducedMotion?0:500);
+  }catch(error){console.warn(error);plaudFormError.textContent='归档失败。录音文件很大时，可以先从 PLAUD 导出体积更小的版本再试。';}
+  finally{plaudImportSave.disabled=false;plaudImportSave.firstChild.textContent='ARCHIVE TO HH022 ';}
+});
+
 
 /* ---------- Portable private archive backup ---------- */
 function blobToDataUrl(blob) {
@@ -1995,6 +2266,7 @@ const weatherSummary = $('#weather-summary');
 
 let constellationPoints = [];
 let constellationRenderFrame = 0;
+let constellationPulseTimer = 0;
 
 function readGrowthMilestones() {
   try { return JSON.parse(localStorage.getItem(GROWTH_MILESTONE_KEY) || '{}') || {}; }
@@ -2014,7 +2286,11 @@ function journalSearchText(item) {
     item?.lesson,
     item?.mood,
     item?.weather,
-    item?.aircraft
+    item?.aircraft,
+    item?.location,
+    item?.futureLine,
+    item?.transcript,
+    item?.summary
   ].filter(Boolean).join(' ').toLowerCase();
 }
 function journalHasAnyKeyword(keywords) {
@@ -2106,7 +2382,8 @@ function renderBadges() {
     { symbol:'3T', title:'TYPE COLLECTOR', note:'记录 3 种不同机型', unlocked:m.types.size >= 3 },
     { symbol:'5A', title:'AIRPORT EXPLORER', note:'去过 5 个机场', unlocked:m.airports.size >= 5 },
     { symbol:'10F', title:'TEN FLIGHTS', note:'记录 10 程航班', unlocked:m.flights.length >= 10 },
-    { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) }
+    { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) },
+    { symbol:'S·V', title:'FIRST SOLO CVR', note:'第一次单飞的声音被永久封存', unlocked:Boolean(findFirstSoloVoiceRecord()) }
   ];
   const unlockedCount = defs.filter((item) => item.unlocked).length;
   badgeProgress.textContent = `${unlockedCount} / ${defs.length} UNLOCKED`;
@@ -2180,7 +2457,7 @@ function buildConstellationEvents() {
     if (date) events.push({ id:`timeline-${index}`, date, type:'memory', title:item.title, note:item.note, target:'log' });
   });
   getAllFlights().forEach((item) => events.push({ id:item.id, date:item.date, type:'flight', title:`${item.flight} · ${item.from} → ${item.to}`, note:[item.aircraft,item.operator].filter(Boolean).join(' · '), target:'flight' }));
-  journalRecords.forEach((item) => events.push({ id:item.id, date:item.date, type:'journal', title:item.title || 'Training log', note:[item.stage,item.aircraft].filter(Boolean).join(' · '), target:'journal' }));
+  journalRecords.forEach((item) => events.push({ id:item.id, date:item.date, type:item.voice?.blob ? 'voice' : 'journal', title:item.title || 'Training log', note:[item.stage,item.aircraft,item.voice?.blob ? '🎙 VOICE PRESERVED' : ''].filter(Boolean).join(' · '), target:'journal' }));
   galleryLocalRecords.forEach((item) => { if (item.date) events.push({ id:item.id, date:item.date, type:'memory', title:item.title || 'Memory', note:item.place || item.note || '', target:'gallery' }); });
   return events.filter((item) => item.date).sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 }
@@ -2206,6 +2483,7 @@ function resizeConstellationCanvas() {
   return { ctx, width, height, dpr };
 }
 function drawConstellation() {
+  clearTimeout(constellationPulseTimer);
   cancelAnimationFrame(constellationRenderFrame);
   constellationRenderFrame = requestAnimationFrame(() => {
     const sized = resizeConstellationCanvas();
@@ -2243,12 +2521,15 @@ function drawConstellation() {
       ctx.strokeStyle=grad; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     }
     constellationPoints.forEach((point,index) => {
-      const color = point.type==='flight' ? [157,217,255] : point.type==='journal' ? [205,183,143] : [234,182,200];
-      const radius = point.type==='journal' ? 4.4 : 3.8;
+      const color = point.type==='flight' ? [157,217,255] : point.type==='voice' ? [120,234,220] : point.type==='journal' ? [205,183,143] : [234,182,200];
+      const pulse = point.type==='voice' ? (Math.sin(Date.now()/430 + index)*.5+.5) : 0;
+      const radius = point.type==='voice' ? 4.8 + pulse*1.7 : point.type==='journal' ? 4.4 : 3.8;
       const glow=ctx.createRadialGradient(point.x,point.y,0,point.x,point.y,17); glow.addColorStop(0,`rgba(${color.join(',')},.38)`); glow.addColorStop(1,`rgba(${color.join(',')},0)`); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(point.x,point.y,17,0,Math.PI*2);ctx.fill();
       ctx.fillStyle=`rgb(${color.join(',')})`;ctx.beginPath();ctx.arc(point.x,point.y,radius,0,Math.PI*2);ctx.fill();
+      if(point.type==='voice'){ctx.strokeStyle=`rgba(${color.join(',')},${.22+pulse*.28})`;ctx.lineWidth=1;ctx.beginPath();ctx.arc(point.x,point.y,11+pulse*7,0,Math.PI*2);ctx.stroke();}
       if(index===constellationPoints.length-1){ctx.strokeStyle='rgba(205,183,143,.38)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(point.x,point.y,10,0,Math.PI*2);ctx.stroke();}
     });
+    if (constellationPoints.some((point)=>point.type==='voice') && !reducedMotion) constellationPulseTimer=setTimeout(drawConstellation,90);
   });
 }
 function constellationHit(event) {
@@ -2282,7 +2563,10 @@ function refreshLifeOS() {
   renderGrowthCockpit();
   renderBadges();
   renderInnerWeather();
+  renderPlaudBlackBox();
+  renderFutureEcho();
   drawConstellation();
+  if (atlasEngine) atlasEngine.setFlights(getAllFlights());
 }
 window.HH022_REFRESH_LIFE_OS = refreshLifeOS;
 
@@ -2297,6 +2581,7 @@ async function initPrivateVault() {
     journalRecords = await idbGetAll(JOURNAL_STORE);
     galleryDate.value = localISODate();
     journalDate.value = localISODate();
+    if (plaudDate) plaudDate.value = localISODate();
     renderGallery();
     renderJournalIndex();
     refreshLifeOS();
