@@ -829,7 +829,69 @@ importFlightsFile?.addEventListener('change', async () => {
 });
 
 /* ---------- THREE.JS GLOBE ---------- */
+let globeBootStarted = false;
+
+function drawGlobeFallback(canvas, stage, loading) {
+  if (!canvas || !stage) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let lonOffset = -18;
+  let dragging = false;
+  let startX = 0;
+
+  const continents = [
+    [[-168,72],[-140,60],[-125,48],[-110,45],[-100,30],[-82,25],[-80,10],[-96,14],[-110,22],[-118,32],[-130,50],[-150,58]],
+    [[-82,12],[-72,8],[-62,-4],[-54,-18],[-58,-33],[-68,-54],[-76,-42],[-74,-20]],
+    [[-10,72],[24,70],[45,60],[80,57],[112,50],[140,54],[168,60],[178,45],[145,38],[120,25],[104,8],[80,10],[58,24],[42,32],[28,43],[12,50],[-4,44],[-10,30]],
+    [[-18,35],[5,37],[24,30],[34,12],[30,-10],[18,-34],[2,-35],[-8,-18],[-15,5]],
+    [[112,-12],[154,-10],[151,-28],[135,-40],[116,-34]],
+    [[-52,83],[-22,78],[-28,66],[-48,65]],
+    [[44,-12],[50,-16],[48,-25],[42,-22]]
+  ];
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width*dpr));
+    canvas.height = Math.max(1, Math.round(rect.height*dpr));
+    canvas.style.width = rect.width+'px'; canvas.style.height = rect.height+'px';
+    draw();
+  }
+  function project(lon, lat, cx, cy, r) {
+    let lambda = (lon + lonOffset) * Math.PI/180;
+    const phi = lat * Math.PI/180;
+    const x = Math.cos(phi)*Math.sin(lambda);
+    const z = Math.cos(phi)*Math.cos(lambda);
+    const y = Math.sin(phi);
+    if (z < -0.06) return null;
+    return [cx + x*r, cy - y*r, z];
+  }
+  function draw() {
+    const w=canvas.width/dpr, h=canvas.height/dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    const cx=w*.5, cy=h*.49, r=Math.min(w,h)*.34;
+    const halo=ctx.createRadialGradient(cx-r*.25,cy-r*.28,r*.05,cx,cy,r*1.18); halo.addColorStop(0,'rgba(190,235,255,.30)');halo.addColorStop(.72,'rgba(55,138,185,.12)');halo.addColorStop(1,'rgba(15,72,110,0)');ctx.fillStyle=halo;ctx.beginPath();ctx.arc(cx,cy,r*1.2,0,Math.PI*2);ctx.fill();
+    const ocean=ctx.createRadialGradient(cx-r*.36,cy-r*.4,r*.08,cx,cy,r);ocean.addColorStop(0,'#74c7ec');ocean.addColorStop(.36,'#2e8bc5');ocean.addColorStop(.82,'#0b4e82');ocean.addColorStop(1,'#082e53');ctx.fillStyle=ocean;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+    continents.forEach(poly=>{let started=false;ctx.beginPath();poly.forEach(([lon,lat])=>{const p=project(lon,lat,cx,cy,r);if(!p){started=false;return;} if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}); if(started){ctx.closePath(); const land=ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);land.addColorStop(0,'#9dbf73');land.addColorStop(.45,'#5d8f52');land.addColorStop(1,'#b39b66');ctx.fillStyle=land;ctx.fill();ctx.strokeStyle='rgba(223,239,207,.28)';ctx.lineWidth=.8;ctx.stroke();}});
+    ctx.globalAlpha=.17;ctx.strokeStyle='#d9f1ff';ctx.lineWidth=.6;
+    for(let lat=-60;lat<=60;lat+=30){ctx.beginPath();let started=false;for(let lon=-180;lon<=180;lon+=4){const p=project(lon,lat,cx,cy,r);if(!p){started=false;continue;}if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}ctx.stroke();}
+    for(let lon=-150;lon<=180;lon+=30){ctx.beginPath();let started=false;for(let lat=-85;lat<=85;lat+=3){const p=project(lon,lat,cx,cy,r);if(!p){started=false;continue;}if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}ctx.stroke();}
+    ctx.globalAlpha=1;ctx.restore();
+    const shade=ctx.createRadialGradient(cx-r*.45,cy-r*.45,r*.15,cx+r*.12,cy+r*.1,r*1.08);shade.addColorStop(0,'rgba(255,255,255,.15)');shade.addColorStop(.66,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(0,10,24,.58)');ctx.fillStyle=shade;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(167,225,250,.58)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+  }
+  // remove the accidental placeholder line before executing draw
+  const originalDraw = draw;
+  canvas.addEventListener('pointerdown', e=>{dragging=true;startX=e.clientX;canvas.setPointerCapture?.(e.pointerId)});
+  canvas.addEventListener('pointermove', e=>{if(!dragging)return;lonOffset += (e.clientX-startX)*.35;startX=e.clientX;draw();});
+  canvas.addEventListener('pointerup', ()=>dragging=false); canvas.addEventListener('pointercancel',()=>dragging=false);
+  new ResizeObserver(resize).observe(stage); resize();
+  if (loading) { loading.innerHTML='<span>LOCAL EARTH MODE · DRAG TO ROTATE</span>'; setTimeout(()=>loading.classList.add('ready'),900); }
+}
+
 async function bootFlightGlobe() {
+  if (globeBootStarted) return;
+  globeBootStarted = true;
   const canvas = $('#flight-globe');
   const stage = $('#globe-stage');
   const loading = $('#globe-loading');
@@ -837,11 +899,17 @@ async function bootFlightGlobe() {
   if (!canvas || !stage) return;
 
   let THREE;
-  try {
-    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js');
-  } catch (error) {
-    console.warn('Three.js failed to load:', error);
-    loading.innerHTML = '<span>3D ENGINE UNAVAILABLE · REFRESH TO RETRY</span>';
+  const threeSources = [
+    'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js',
+    'https://unpkg.com/three@0.160.1/build/three.module.js?module',
+    'https://esm.sh/three@0.160.1'
+  ];
+  for (const source of threeSources) {
+    try { THREE = await import(source); if (THREE) break; } catch (error) { console.warn('3D source failed:', source, error); }
+  }
+  if (!THREE) {
+    console.warn('All 3D sources unavailable; using local canvas Earth fallback.');
+    drawGlobeFallback(canvas, stage, loading);
     return;
   }
 
@@ -875,18 +943,21 @@ async function bootFlightGlobe() {
   const globe = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), earthMaterial);
   world.add(globe);
 
-  const earthTextureUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+  const earthTextureUrls = [
+    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+    'https://raw.githubusercontent.com/vasturiano/three-globe/master/example/img/earth-blue-marble.jpg'
+  ];
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin('anonymous');
-  textureLoader.load(earthTextureUrl, (texture) => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
-    earthMaterial.map = texture;
-    earthMaterial.color.setHex(0xffffff);
-    earthMaterial.needsUpdate = true;
-  }, undefined, () => {
-    console.warn('Earth texture unavailable; using bright fallback material.');
-  });
+  const loadEarthTexture = (index = 0) => {
+    if (index >= earthTextureUrls.length) { console.warn('Earth texture unavailable; using bright fallback material.'); return; }
+    textureLoader.load(earthTextureUrls[index], (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
+      earthMaterial.map = texture; earthMaterial.color.setHex(0xffffff); earthMaterial.needsUpdate = true;
+    }, undefined, () => loadEarthTexture(index + 1));
+  };
+  loadEarthTexture();
 
   const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(RADIUS * 1.07, 72, 72),
@@ -1206,13 +1277,16 @@ async function bootFlightGlobe() {
 /* Lazy-load 3D only when the atlas approaches the viewport. */
 const atlasSection = $('#atlas');
 if (atlasSection) {
-  const atlasBootObserver = new IntersectionObserver((entries, observer) => {
-    if (entries.some((entry) => entry.isIntersecting)) {
-      bootFlightGlobe();
-      observer.disconnect();
-    }
-  }, { rootMargin: '500px 0px' });
-  atlasBootObserver.observe(atlasSection);
+  if ('IntersectionObserver' in window) {
+    const atlasBootObserver = new IntersectionObserver((entries, observer) => {
+      if (entries.some((entry) => entry.isIntersecting)) { bootFlightGlobe(); observer.disconnect(); }
+    }, { rootMargin: '700px 0px' });
+    atlasBootObserver.observe(atlasSection);
+  } else {
+    bootFlightGlobe();
+  }
+  // Safari / aggressive cache fallback: ensure the Earth is initialized even if observer delivery is delayed.
+  setTimeout(() => bootFlightGlobe(), 1800);
 }
 
 /* =========================================================
@@ -1220,7 +1294,7 @@ if (atlasSection) {
    IndexedDB keeps image-heavy data on the current device.
    ========================================================= */
 const PRIVATE_DB_NAME = 'hh022-private-vault-v1';
-const PRIVATE_DB_VERSION = 2;
+const PRIVATE_DB_VERSION = 3;
 const GALLERY_STORE = 'gallery';
 const JOURNAL_STORE = 'journal';
 const FUTURE_MAIL_STORE = 'futureMail';
@@ -2823,6 +2897,8 @@ function refreshLifeOS() {
   if (atlasEngine) atlasEngine.setFlights(getAllFlights());
 }
 window.HH022_REFRESH_LIFE_OS = refreshLifeOS;
+// Paint badges + weather immediately; IndexedDB data will refresh them again once loaded.
+try { refreshLifeOS(); } catch (error) { console.warn('Initial Life OS render deferred:', error); }
 
 async function initPrivateVault() {
   if (!('indexedDB' in window)) {
@@ -2831,11 +2907,12 @@ async function initPrivateVault() {
     return;
   }
   try {
-    galleryLocalRecords = await idbGetAll(GALLERY_STORE);
-    journalRecords = await idbGetAll(JOURNAL_STORE);
-    futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
-    galleryDate.value = localISODate();
-    journalDate.value = localISODate();
+    // Read each store independently so one old/missing store can never blank the badges or weather wall.
+    try { galleryLocalRecords = await idbGetAll(GALLERY_STORE); } catch (e) { console.warn('Gallery store read failed:', e); galleryLocalRecords = []; }
+    try { journalRecords = await idbGetAll(JOURNAL_STORE); } catch (e) { console.warn('Journal store read failed:', e); journalRecords = []; }
+    try { futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE); } catch (e) { console.warn('Future mail store read failed:', e); futureMailRecords = []; }
+    if (galleryDate) galleryDate.value = localISODate();
+    if (journalDate) journalDate.value = localISODate();
     if (plaudDate) plaudDate.value = localISODate();
     resetFutureMailForm();
     renderGallery();
@@ -2846,6 +2923,8 @@ async function initPrivateVault() {
     if (document.body.classList.contains('entered')) setTimeout(() => maybeAutoDeliverFutureMail(), 250);
   } catch (error) {
     console.warn('Private vault init failed:', error);
+    // Life OS must remain visible even if private browser storage is unavailable.
+    try { renderGallery(); renderJournalIndex(); renderFutureMailArchive(); refreshLifeOS(); } catch (renderError) { console.warn('Fallback render failed:', renderError); }
   }
 }
 initPrivateVault();
