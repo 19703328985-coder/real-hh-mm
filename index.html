@@ -7,8 +7,8 @@
   <title>HH022 · 飞往 22 岁</title>
   <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=9.2">
-  <meta name="hh022-version" content="9.1">
+  <link rel="stylesheet" href="style.css?v=9.3-stable">
+  <meta name="hh022-version" content="9.3-stable">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -311,6 +311,10 @@
               <p id="journal-view-lesson"></p>
             </div>
             <div class="journal-photo-grid" id="journal-view-photos"></div>
+            <div class="journal-voice-playback" id="journal-voice-playback" hidden>
+              <div><span>COCKPIT VOICE RECORDER</span><strong>那一天的声音</strong></div>
+              <audio id="journal-view-audio" controls preload="metadata"></audio>
+            </div>
             <div class="journal-rich-block plaud-transcript-block" id="journal-transcript-block" hidden>
               <span>PLAUD TRANSCRIPT</span>
               <p id="journal-view-transcript"></p>
@@ -318,14 +322,6 @@
             <div class="journal-rich-block plaud-summary-block" id="journal-summary-block" hidden>
               <span>PLAUD SUMMARY</span>
               <p id="journal-view-summary"></p>
-            </div>
-            <blockquote class="future-self-quote" id="journal-future-block" hidden>
-              <span>ONE LINE TO YOUR FUTURE SELF</span>
-              <p id="journal-view-future"></p>
-            </blockquote>
-            <div class="journal-voice-playback" id="journal-voice-playback" hidden>
-              <div class="voice-playback-head"><div><span>COCKPIT VOICE RECORDER</span><strong id="journal-voice-label">那一天的声音</strong></div><em id="journal-voice-source">HH022 CVR</em></div>
-              <div class="waveform-player" id="journal-waveform-player"></div>
             </div>
             <div class="journal-reader-actions">
               <button class="text-btn" id="journal-edit" type="button">EDIT ENTRY</button>
@@ -344,14 +340,12 @@
           <label>DATE<input id="journal-date" type="date" required></label>
           <label>TRAINING STAGE<select id="journal-stage"><option>基础训练</option><option>起落航线</option><option>转场训练</option><option>仪表训练</option><option>模拟机</option><option>夜航</option><option>单飞</option><option>理论学习</option><option>复盘 / 其他</option></select></label>
           <label>ACT / AIRCRAFT<input id="journal-aircraft" type="text" maxlength="30" placeholder="C172S / DA40 / 模拟机"></label>
-          <label>LOCATION / AIRPORT<input id="journal-location" list="airport-list" type="text" maxlength="40" placeholder="XUZ / 徐州观音机场"></label>
           <label>DURATION (H)<input id="journal-hours" type="number" min="0" max="24" step="0.1" placeholder="1.5"></label>
           <label>MOOD<select id="journal-mood"><option>平静</option><option>兴奋</option><option>紧张</option><option>挫败</option><option>突破</option><option>疲惫</option><option>很有成就感</option></select></label>
           <label>INNER WEATHER<select id="journal-weather"><option value="CAVOK">CAVOK · 状态很好</option><option value="CLEAR">CLEAR · 清朗</option><option value="CLOUDY">CLOUDY · 有点迷茫</option><option value="CROSSWIND">CROSSWIND · 有挑战</option><option value="TURBULENCE">TURBULENCE · 起伏很大</option><option value="STORM">STORM · 很难熬</option><option value="AFTER RAIN">AFTER RAIN · 熬过去了</option></select></label>
           <label class="wide">TITLE<input id="journal-title" type="text" maxlength="60" placeholder="例如：第一次独立完成稳定进近" required></label>
           <label class="full">TODAY'S NOTE<textarea id="journal-note" maxlength="1600" rows="7" placeholder="今天发生了什么？哪些动作比上次更稳定？当时是什么感受？" required></textarea></label>
           <label class="full">LESSON LEARNED<textarea id="journal-lesson" maxlength="1000" rows="5" placeholder="今天最值得带走的一条经验 / 下次训练前提醒自己的事。"></textarea></label>
-          <label class="full future-self-field">ONE LINE TO YOUR FUTURE SELF<input id="journal-future-line" type="text" maxlength="160" placeholder="如果几年后的自己重新听到今天，你想留下一句什么？"></label>
           <label class="memory-file-drop full">
             <input id="journal-files" type="file" accept="image/*" multiple>
             <span>ADD TRAINING PHOTOS</span>
@@ -376,15 +370,15 @@
     </section>
 
 
+
     <section class="section plaud-section" id="plaud">
       <div class="section-head split-head reveal">
         <div>
           <p class="micro gold">06 · PLAUD × HH022</p>
           <h3>把现实里的声音，<br>收进你的私人黑匣子。</h3>
         </div>
-        <p>PLAUD 负责把训练后的声音、转写和总结带回来；HH022 把它们和日期、机型、机场、心情、照片与成长轨迹放在一起。以后再听见的，不只是录音，而是当时那个正在学会飞行的自己。</p>
+        <p>PLAUD 负责把训练后的声音、转写和总结带回来；HH022 把它们和日期、机型、机场、心情与成长轨迹放在一起。以后再听见的，不只是录音，而是当时那个正在学会飞行的自己。</p>
       </div>
-
       <article class="plaud-pledge reveal">
         <div class="plaud-device-mark" aria-hidden="true"><i></i><span>REC</span></div>
         <div>
@@ -393,7 +387,6 @@
           <p>今年送你的，不只是一个录音设备。它会成为这本飞行日志在现实世界里的“黑匣子钥匙”。</p>
         </div>
       </article>
-
       <div class="plaud-layout">
         <article class="plaud-import-card reveal">
           <div class="blackbox-card-head"><div><span>IMPORT FROM PLAUD</span><strong>归档一次真实的飞行复盘</strong></div><span>MP3 · WAV · M4A · TXT · MD · SRT</span></div>
@@ -409,13 +402,11 @@
             <label class="plaud-file-drop full"><input id="plaud-audio" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.webm"><span>01 · PLAUD AUDIO</span><strong>选择导出的录音</strong><small id="plaud-audio-name">MP3 / WAV / M4A / WEBM</small></label>
             <label class="plaud-file-drop"><input id="plaud-transcript" type="file" accept=".txt,.md,.srt,.vtt,text/plain,text/markdown"><span>02 · TRANSCRIPT</span><strong>选择转写文件</strong><small id="plaud-transcript-name">TXT / MD / SRT / VTT · 可选</small></label>
             <label class="plaud-file-drop"><input id="plaud-summary" type="file" accept=".txt,.md,text/plain,text/markdown"><span>03 · SUMMARY</span><strong>选择 PLAUD 总结</strong><small id="plaud-summary-name">TXT / MD · 可选</small></label>
-            <label class="full future-self-field">ONE LINE TO YOUR FUTURE SELF<input id="plaud-future-line" type="text" maxlength="160" placeholder="例如：今天还是很怕侧风，但别忘了，我没有放弃。"></label>
             <p class="memory-form-error" id="plaud-form-error" role="alert"></p>
             <button class="cta gold-btn full" id="plaud-import-save" type="submit">ARCHIVE TO HH022 <span>↗</span></button>
           </form>
-          <p class="private-storage-note"><i></i> 导入的是你从 PLAUD 导出的文件副本，保存在这台设备的 HH022 私人数据库里；不会自动上传到公共服务器。</p>
+          <p class="private-storage-note"><i></i> 导入的是你从 PLAUD 导出的文件副本，只保存在这台设备的 HH022 私人数据库里。</p>
         </article>
-
         <aside class="blackbox-archive reveal delay-1">
           <div class="blackbox-card-head"><div><span>VOICE ARCHIVE</span><strong>会说话的飞行档案</strong></div><span id="voice-archive-count">00 RECORDS</span></div>
           <article class="first-solo-box" id="first-solo-box" hidden>
@@ -423,7 +414,6 @@
             <h4 id="first-solo-title">第一次单飞</h4>
             <p id="first-solo-meta"></p>
             <div class="waveform-player solo-waveform" id="first-solo-waveform"></div>
-            <blockquote id="first-solo-future"></blockquote>
             <button class="text-btn" id="first-solo-open" type="button">OPEN FIRST SOLO LOG →</button>
           </article>
           <div class="voice-archive-list" id="voice-archive-list"></div>
@@ -449,7 +439,7 @@
             <div class="constellation-tooltip" id="constellation-tooltip" hidden></div>
             <div class="constellation-empty" id="constellation-empty">第一条记录，会成为第一颗星。</div>
           </div>
-          <div class="constellation-legend"><span><i class="star-flight"></i> FLIGHT</span><span><i class="star-journal"></i> TRAINING</span><span><i class="star-memory"></i> MEMORY</span><span><i class="star-voice"></i> VOICE</span><span>MOVE · TAP A STAR</span></div>
+          <div class="constellation-legend"><span><i class="star-flight"></i> FLIGHT</span><span><i class="star-journal"></i> TRAINING</span><span><i class="star-memory"></i> MEMORY</span><span>MOVE · TAP A STAR</span></div>
         </article>
 
         <article class="cockpit-card reveal delay-1">
@@ -480,8 +470,9 @@
           <div class="weather-summary" id="weather-summary">写下训练日志后，这里会慢慢出现属于这一年的“内心天气”。</div>
         </article>
       </div>
-
     </section>
+
+
 
     <section class="section future-mail-section" id="future-mail">
       <div class="section-head split-head reveal">
@@ -489,9 +480,8 @@
           <p class="micro gold">08 · FUTURE MAIL</p>
           <h3>写给未来。<br>让它在约定的那一天抵达。</h3>
         </div>
-        <p>不是“随时都能看到”的留言，而是一封真正被时间锁住的信。写下内容、选择开启日期并封存；等那一天到来，再打开 HH022，它会主动从过去弹出来找你。</p>
+        <p>写下内容、选择开启日期并封存。日期没到以前只看得到标题和抵达日；等那一天再打开 HH022，它会主动从过去弹出来找你。关闭以后，也可以随时在时间信箱里重读。</p>
       </div>
-
       <div class="future-mail-shell">
         <article class="future-mail-compose reveal">
           <div class="future-mail-eyebrow"><span>TIME-LOCKED MESSAGE</span><i></i><span>HH022 POST</span></div>
@@ -500,42 +490,27 @@
             <div class="future-mail-compose-copy">
               <span>LETTER TO A FUTURE VERSION OF YOU</span>
               <h4>现在写下，未来签收。</h4>
-              <p>封存之后，信件会留在这台设备。开启日前只显示标题和抵达日期，不展示正文；抵达后会自动解锁，并保留在下方档案里随时重读。</p>
+              <p>它更像一封定时邮件：写的时候确定开启日期；在那之前保持封存；到了日期，在下一次登上 HH022 时自动抵达。</p>
               <button class="cta gold-btn" id="future-mail-new" type="button">WRITE A FUTURE LETTER <span>↗</span></button>
             </div>
           </div>
-
           <div class="future-mail-form-shell" id="future-mail-form-shell" hidden>
-            <div class="memory-form-head">
-              <div><span>FUTURE DELIVERY</span><strong id="future-mail-form-title">写一封定时信</strong></div>
-              <button id="future-mail-form-close" type="button" aria-label="关闭">×</button>
-            </div>
+            <div class="memory-form-head"><div><span>FUTURE DELIVERY</span><strong id="future-mail-form-title">写一封定时信</strong></div><button id="future-mail-form-close" type="button" aria-label="关闭">×</button></div>
             <form class="future-mail-form" id="future-mail-form">
               <label>OPEN ON<input id="future-mail-date" type="date" required></label>
               <label>SUBJECT<input id="future-mail-title" type="text" maxlength="60" placeholder="例如：写给第一次单飞后的你" required></label>
               <label class="full">MESSAGE<textarea id="future-mail-message" maxlength="4000" rows="10" placeholder="想对那一天的自己说什么？" required></textarea></label>
-              <div class="future-mail-seal-note full"><i></i><span>SEALED UNTIL DELIVERY</span><p>封存后，开启日前正文不会在档案列表里显示。到了指定日期，再打开 HH022 时会自动送达。</p></div>
+              <div class="future-mail-seal-note full"><i></i><span>SEALED UNTIL DELIVERY</span><p>封存以后，开启日前正文不会显示。到了指定日期，再打开 HH022 时会自动送达。</p></div>
               <p class="memory-form-error full" id="future-mail-error" role="alert"></p>
               <button class="cta gold-btn full" id="future-mail-save" type="submit">SEAL & SCHEDULE <span>↗</span></button>
             </form>
           </div>
         </article>
-
         <article class="future-mail-archive reveal delay-1">
-          <div class="os-card-head">
-            <div><span>FUTURE MAIL ARCHIVE</span><strong>时间信箱</strong></div>
-            <span id="future-mail-count">00 LETTERS</span>
-          </div>
-          <div class="future-mail-stats">
-            <div><span>WAITING</span><strong id="future-mail-waiting">0</strong></div>
-            <div><span>ARRIVED</span><strong id="future-mail-arrived">0</strong></div>
-            <div><span>NEXT DELIVERY</span><strong id="future-mail-next">—</strong></div>
-          </div>
+          <div class="os-card-head"><div><span>FUTURE MAIL ARCHIVE</span><strong>时间信箱</strong></div><span id="future-mail-count">00 LETTERS</span></div>
+          <div class="future-mail-stats"><div><span>WAITING</span><strong id="future-mail-waiting">0</strong></div><div><span>ARRIVED</span><strong id="future-mail-arrived">0</strong></div><div><span>NEXT DELIVERY</span><strong id="future-mail-next">—</strong></div></div>
           <div class="future-mail-list" id="future-mail-list"></div>
-          <div class="future-mail-empty" id="future-mail-empty">
-            <span>NO LETTERS IN TRANSIT</span>
-            <strong>第一封信，等你选择它抵达未来的哪一天。</strong>
-          </div>
+          <div class="future-mail-empty" id="future-mail-empty"><span>NO LETTERS IN TRANSIT</span><strong>第一封信，等你选择它抵达未来的哪一天。</strong></div>
         </article>
       </div>
     </section>
@@ -653,29 +628,20 @@
   </div>
 
 
+
   <div class="future-mail-modal" id="future-mail-modal" hidden role="dialog" aria-modal="true" aria-labelledby="future-mail-modal-title">
     <button class="future-mail-modal-backdrop" id="future-mail-modal-backdrop" type="button" aria-label="关闭未来来信"></button>
     <article class="future-mail-modal-card">
       <div class="future-mail-arrival-strip"><span>MESSAGE ARRIVED</span><i></i><strong>HH022 · FUTURE MAIL</strong></div>
       <button class="future-mail-modal-close" id="future-mail-modal-close" type="button" aria-label="关闭">×</button>
       <div class="future-mail-modal-stamp">DELIVERED</div>
-      <div class="future-mail-modal-head">
-        <span id="future-mail-modal-date">—</span>
-        <h3 id="future-mail-modal-title">一封来自过去的信</h3>
-        <p id="future-mail-modal-origin">WRITTEN —</p>
-      </div>
+      <div class="future-mail-modal-head"><span id="future-mail-modal-date">—</span><h3 id="future-mail-modal-title">一封来自过去的信</h3><p id="future-mail-modal-origin">WRITTEN —</p></div>
       <div class="future-mail-modal-body" id="future-mail-modal-message"></div>
-      <div class="future-mail-modal-footer">
-        <span id="future-mail-modal-queue"></span>
-        <div>
-          <button class="text-btn" id="future-mail-modal-archive" type="button">OPEN ARCHIVE</button>
-          <button class="cta gold-btn" id="future-mail-modal-next" type="button" hidden>NEXT LETTER <span>→</span></button>
-        </div>
-      </div>
+      <div class="future-mail-modal-footer"><span id="future-mail-modal-queue"></span><div><button class="text-btn" id="future-mail-modal-archive" type="button">OPEN ARCHIVE</button><button class="cta gold-btn" id="future-mail-modal-next" type="button" hidden>NEXT LETTER <span>→</span></button></div></div>
     </article>
   </div>
 
-  <audio id="bgm" src="bgm.mp3?v=9.2" loop preload="metadata"></audio>
-  <script src="app.js?v=9.2"></script>
+  <audio id="bgm" src="bgm.mp3?v=8.0" loop preload="metadata"></audio>
+  <script src="app.js?v=9.3-stable"></script>
 </body>
 </html>

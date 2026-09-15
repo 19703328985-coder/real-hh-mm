@@ -206,7 +206,6 @@ function enterSite() {
   document.body.classList.add('entered');
   boarding.classList.add('leaving');
   setTimeout(() => boarding.hidden = true, reducedMotion ? 20 : 900);
-  setTimeout(() => maybeAutoDeliverFutureMail(), reducedMotion ? 120 : 1250);
 }
 
 boardBtn.addEventListener('click', enterSite);
@@ -586,7 +585,7 @@ function renderAtlas() {
   const records = getAllFlights();
   manifestCount.textContent = `${String(records.length).padStart(2, '0')} RECORD${records.length === 1 ? '' : 'S'}`;
   manifestEmpty.hidden = records.length > 0;
-  globeEmpty.hidden = records.length > 0 || getVoiceMapRecords().length > 0;
+  globeEmpty.hidden = records.length > 0;
 
   const airportCodes = new Set();
   let totalKm = 0;
@@ -785,7 +784,7 @@ clearLocalFlights?.addEventListener('click', () => {
 exportFlights?.addEventListener('click', () => {
   const archive = {
     format: 'HH022 PERSONAL FLIGHT LOGBOOK',
-    version: 3,
+    version: 2,
     exportedAt: new Date().toISOString(),
     records: localFlights
   };
@@ -829,69 +828,7 @@ importFlightsFile?.addEventListener('change', async () => {
 });
 
 /* ---------- THREE.JS GLOBE ---------- */
-let globeBootStarted = false;
-
-function drawGlobeFallback(canvas, stage, loading) {
-  if (!canvas || !stage) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  let lonOffset = -18;
-  let dragging = false;
-  let startX = 0;
-
-  const continents = [
-    [[-168,72],[-140,60],[-125,48],[-110,45],[-100,30],[-82,25],[-80,10],[-96,14],[-110,22],[-118,32],[-130,50],[-150,58]],
-    [[-82,12],[-72,8],[-62,-4],[-54,-18],[-58,-33],[-68,-54],[-76,-42],[-74,-20]],
-    [[-10,72],[24,70],[45,60],[80,57],[112,50],[140,54],[168,60],[178,45],[145,38],[120,25],[104,8],[80,10],[58,24],[42,32],[28,43],[12,50],[-4,44],[-10,30]],
-    [[-18,35],[5,37],[24,30],[34,12],[30,-10],[18,-34],[2,-35],[-8,-18],[-15,5]],
-    [[112,-12],[154,-10],[151,-28],[135,-40],[116,-34]],
-    [[-52,83],[-22,78],[-28,66],[-48,65]],
-    [[44,-12],[50,-16],[48,-25],[42,-22]]
-  ];
-
-  function resize() {
-    const rect = stage.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.round(rect.width*dpr));
-    canvas.height = Math.max(1, Math.round(rect.height*dpr));
-    canvas.style.width = rect.width+'px'; canvas.style.height = rect.height+'px';
-    draw();
-  }
-  function project(lon, lat, cx, cy, r) {
-    let lambda = (lon + lonOffset) * Math.PI/180;
-    const phi = lat * Math.PI/180;
-    const x = Math.cos(phi)*Math.sin(lambda);
-    const z = Math.cos(phi)*Math.cos(lambda);
-    const y = Math.sin(phi);
-    if (z < -0.06) return null;
-    return [cx + x*r, cy - y*r, z];
-  }
-  function draw() {
-    const w=canvas.width/dpr, h=canvas.height/dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
-    const cx=w*.5, cy=h*.49, r=Math.min(w,h)*.34;
-    const halo=ctx.createRadialGradient(cx-r*.25,cy-r*.28,r*.05,cx,cy,r*1.18); halo.addColorStop(0,'rgba(190,235,255,.30)');halo.addColorStop(.72,'rgba(55,138,185,.12)');halo.addColorStop(1,'rgba(15,72,110,0)');ctx.fillStyle=halo;ctx.beginPath();ctx.arc(cx,cy,r*1.2,0,Math.PI*2);ctx.fill();
-    const ocean=ctx.createRadialGradient(cx-r*.36,cy-r*.4,r*.08,cx,cy,r);ocean.addColorStop(0,'#74c7ec');ocean.addColorStop(.36,'#2e8bc5');ocean.addColorStop(.82,'#0b4e82');ocean.addColorStop(1,'#082e53');ctx.fillStyle=ocean;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
-    ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
-    continents.forEach(poly=>{let started=false;ctx.beginPath();poly.forEach(([lon,lat])=>{const p=project(lon,lat,cx,cy,r);if(!p){started=false;return;} if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}); if(started){ctx.closePath(); const land=ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);land.addColorStop(0,'#9dbf73');land.addColorStop(.45,'#5d8f52');land.addColorStop(1,'#b39b66');ctx.fillStyle=land;ctx.fill();ctx.strokeStyle='rgba(223,239,207,.28)';ctx.lineWidth=.8;ctx.stroke();}});
-    ctx.globalAlpha=.17;ctx.strokeStyle='#d9f1ff';ctx.lineWidth=.6;
-    for(let lat=-60;lat<=60;lat+=30){ctx.beginPath();let started=false;for(let lon=-180;lon<=180;lon+=4){const p=project(lon,lat,cx,cy,r);if(!p){started=false;continue;}if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}ctx.stroke();}
-    for(let lon=-150;lon<=180;lon+=30){ctx.beginPath();let started=false;for(let lat=-85;lat<=85;lat+=3){const p=project(lon,lat,cx,cy,r);if(!p){started=false;continue;}if(!started){ctx.moveTo(p[0],p[1]);started=true}else ctx.lineTo(p[0],p[1]);}ctx.stroke();}
-    ctx.globalAlpha=1;ctx.restore();
-    const shade=ctx.createRadialGradient(cx-r*.45,cy-r*.45,r*.15,cx+r*.12,cy+r*.1,r*1.08);shade.addColorStop(0,'rgba(255,255,255,.15)');shade.addColorStop(.66,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(0,10,24,.58)');ctx.fillStyle=shade;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(167,225,250,.58)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
-  }
-  // remove the accidental placeholder line before executing draw
-  const originalDraw = draw;
-  canvas.addEventListener('pointerdown', e=>{dragging=true;startX=e.clientX;canvas.setPointerCapture?.(e.pointerId)});
-  canvas.addEventListener('pointermove', e=>{if(!dragging)return;lonOffset += (e.clientX-startX)*.35;startX=e.clientX;draw();});
-  canvas.addEventListener('pointerup', ()=>dragging=false); canvas.addEventListener('pointercancel',()=>dragging=false);
-  new ResizeObserver(resize).observe(stage); resize();
-  if (loading) { loading.innerHTML='<span>LOCAL EARTH MODE · DRAG TO ROTATE</span>'; setTimeout(()=>loading.classList.add('ready'),900); }
-}
-
 async function bootFlightGlobe() {
-  if (globeBootStarted) return;
-  globeBootStarted = true;
   const canvas = $('#flight-globe');
   const stage = $('#globe-stage');
   const loading = $('#globe-loading');
@@ -899,17 +836,11 @@ async function bootFlightGlobe() {
   if (!canvas || !stage) return;
 
   let THREE;
-  const threeSources = [
-    'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js',
-    'https://unpkg.com/three@0.160.1/build/three.module.js?module',
-    'https://esm.sh/three@0.160.1'
-  ];
-  for (const source of threeSources) {
-    try { THREE = await import(source); if (THREE) break; } catch (error) { console.warn('3D source failed:', source, error); }
-  }
-  if (!THREE) {
-    console.warn('All 3D sources unavailable; using local canvas Earth fallback.');
-    drawGlobeFallback(canvas, stage, loading);
+  try {
+    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js');
+  } catch (error) {
+    console.warn('Three.js failed to load:', error);
+    loading.innerHTML = '<span>3D ENGINE UNAVAILABLE · REFRESH TO RETRY</span>';
     return;
   }
 
@@ -943,21 +874,18 @@ async function bootFlightGlobe() {
   const globe = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), earthMaterial);
   world.add(globe);
 
-  const earthTextureUrls = [
-    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
-    'https://raw.githubusercontent.com/vasturiano/three-globe/master/example/img/earth-blue-marble.jpg'
-  ];
+  const earthTextureUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin('anonymous');
-  const loadEarthTexture = (index = 0) => {
-    if (index >= earthTextureUrls.length) { console.warn('Earth texture unavailable; using bright fallback material.'); return; }
-    textureLoader.load(earthTextureUrls[index], (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
-      earthMaterial.map = texture; earthMaterial.color.setHex(0xffffff); earthMaterial.needsUpdate = true;
-    }, undefined, () => loadEarthTexture(index + 1));
-  };
-  loadEarthTexture();
+  textureLoader.load(earthTextureUrl, (texture) => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
+    earthMaterial.map = texture;
+    earthMaterial.color.setHex(0xffffff);
+    earthMaterial.needsUpdate = true;
+  }, undefined, () => {
+    console.warn('Earth texture unavailable; using bright fallback material.');
+  });
 
   const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(RADIUS * 1.07, 72, 72),
@@ -1079,22 +1007,6 @@ async function bootFlightGlobe() {
     markersGroup.add(halo);
   }
 
-  function makeVoiceMarker(entry) {
-    const airport = entry.airport;
-    const pos = latLonToVector(airport.lat, airport.lon, RADIUS * 1.045);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.032, 20, 20), new THREE.MeshBasicMaterial({ color: 0x78eadc }));
-    core.position.copy(pos);
-    core.userData = { type:'voice', code:entry.code, airport, journalId:entry.journalId, record:entry.record };
-    markersGroup.add(core);
-    markerMeshes.push(core);
-    const halo = new THREE.Mesh(new THREE.RingGeometry(0.045, 0.070, 32), new THREE.MeshBasicMaterial({ color:0x78eadc, transparent:true, opacity:.58, side:THREE.DoubleSide, depthWrite:false }));
-    halo.position.copy(pos.clone().multiplyScalar(1.004));
-    halo.lookAt(new THREE.Vector3(0,0,0));
-    halo.userData.voicePulse = true;
-    markersGroup.add(halo);
-    pulses.push({ userData:{ voiceHalo:true, mesh:halo, phase:Math.random() } });
-  }
-
   function setFlights(records) {
     disposeGroup(routesGroup);
     disposeGroup(markersGroup);
@@ -1108,7 +1020,6 @@ async function bootFlightGlobe() {
       makeArc(record);
     });
     airports.forEach((airport, code) => makeMarker(code, airport));
-    getVoiceMapRecords().forEach((entry) => makeVoiceMarker(entry));
   }
 
   let focusAnimation = null;
@@ -1178,19 +1089,6 @@ async function bootFlightGlobe() {
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
-  canvas.addEventListener('click', (event) => {
-    if (moved) return;
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(markerMeshes, false)[0];
-    const data = hit?.object?.userData;
-    if (data?.type === 'voice' && data.journalId) {
-      $('#journal')?.scrollIntoView({ behavior:reducedMotion ? 'auto' : 'smooth' });
-      setTimeout(() => selectJournal(data.journalId), reducedMotion ? 0 : 480);
-    }
-  });
   canvas.addEventListener('pointerleave', () => {
     if (!isDragging) tooltip.hidden = true;
   });
@@ -1213,11 +1111,7 @@ async function bootFlightGlobe() {
       return;
     }
     const data = hits[0].object.userData;
-    if (data.type === 'voice') {
-      tooltip.innerHTML = `<b>🎙 ${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.record?.title || 'VOICE FROM THIS PLACE')} · ${escapeHtml(prettyDate(data.record?.date))}</span>`;
-    } else {
-      tooltip.innerHTML = `<b>${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.airport.name)}</span>`;
-    }
+    tooltip.innerHTML = `<b>${escapeHtml(data.code)} · ${escapeHtml(data.airport.city)}</b><span>${escapeHtml(data.airport.name)}</span>`;
     tooltip.style.left = `${event.clientX - rect.left}px`;
     tooltip.style.top = `${event.clientY - rect.top}px`;
     tooltip.hidden = false;
@@ -1250,13 +1144,6 @@ async function bootFlightGlobe() {
       world.quaternion.premultiply(q).normalize();
     }
     pulses.forEach((pulse) => {
-      if (pulse.userData?.voiceHalo) {
-        pulse.userData.phase = (pulse.userData.phase + dt * .7) % 1;
-        const scale = 1 + Math.sin(pulse.userData.phase * Math.PI * 2) * .16;
-        pulse.userData.mesh.scale.setScalar(scale);
-        pulse.userData.mesh.material.opacity = .34 + (Math.sin(pulse.userData.phase * Math.PI * 2) + 1) * .16;
-        return;
-      }
       pulse.userData.phase = (pulse.userData.phase + dt * pulse.userData.speed) % 1;
       pulse.position.copy(pulse.userData.curve.getPoint(pulse.userData.phase));
     });
@@ -1277,16 +1164,13 @@ async function bootFlightGlobe() {
 /* Lazy-load 3D only when the atlas approaches the viewport. */
 const atlasSection = $('#atlas');
 if (atlasSection) {
-  if ('IntersectionObserver' in window) {
-    const atlasBootObserver = new IntersectionObserver((entries, observer) => {
-      if (entries.some((entry) => entry.isIntersecting)) { bootFlightGlobe(); observer.disconnect(); }
-    }, { rootMargin: '700px 0px' });
-    atlasBootObserver.observe(atlasSection);
-  } else {
-    bootFlightGlobe();
-  }
-  // Safari / aggressive cache fallback: ensure the Earth is initialized even if observer delivery is delayed.
-  setTimeout(() => bootFlightGlobe(), 1800);
+  const atlasBootObserver = new IntersectionObserver((entries, observer) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      bootFlightGlobe();
+      observer.disconnect();
+    }
+  }, { rootMargin: '500px 0px' });
+  atlasBootObserver.observe(atlasSection);
 }
 
 /* =========================================================
@@ -1297,7 +1181,6 @@ const PRIVATE_DB_NAME = 'hh022-private-vault-v1';
 const PRIVATE_DB_VERSION = 3;
 const GALLERY_STORE = 'gallery';
 const JOURNAL_STORE = 'journal';
-const FUTURE_MAIL_STORE = 'futureMail';
 
 const STARTER_GALLERY = WINDOW_MEMORIES.map((item, index) => ({
   id: `starter-${index + 1}`,
@@ -1324,10 +1207,6 @@ function openPrivateDb() {
       if (!db.objectStoreNames.contains(JOURNAL_STORE)) {
         const store = db.createObjectStore(JOURNAL_STORE, { keyPath: 'id' });
         store.createIndex('date', 'date', { unique: false });
-      }
-      if (!db.objectStoreNames.contains(FUTURE_MAIL_STORE)) {
-        const store = db.createObjectStore(FUTURE_MAIL_STORE, { keyPath: 'id' });
-        store.createIndex('unlockDate', 'unlockDate', { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -1639,14 +1518,12 @@ const journalFormTitle = $('#journal-form-title');
 const journalDate = $('#journal-date');
 const journalStage = $('#journal-stage');
 const journalAircraft = $('#journal-aircraft');
-const journalLocation = $('#journal-location');
 const journalHours = $('#journal-hours');
 const journalMood = $('#journal-mood');
 const journalWeather = $('#journal-weather');
 const journalTitle = $('#journal-title');
 const journalNote = $('#journal-note');
 const journalLesson = $('#journal-lesson');
-const journalFutureLine = $('#journal-future-line');
 const journalFiles = $('#journal-files');
 const journalFormError = $('#journal-form-error');
 const journalSave = $('#journal-save');
@@ -1657,15 +1534,7 @@ const journalVoiceStatus = $('#journal-voice-status');
 const journalVoiceTimer = $('#journal-voice-timer');
 const journalVoicePreview = $('#journal-voice-preview');
 const journalVoicePlayback = $('#journal-voice-playback');
-const journalWaveformPlayer = $('#journal-waveform-player');
-const journalVoiceLabel = $('#journal-voice-label');
-const journalVoiceSource = $('#journal-voice-source');
-const journalTranscriptBlock = $('#journal-transcript-block');
-const journalSummaryBlock = $('#journal-summary-block');
-const journalFutureBlock = $('#journal-future-block');
-const journalViewTranscript = $('#journal-view-transcript');
-const journalViewSummary = $('#journal-view-summary');
-const journalViewFuture = $('#journal-view-future');
+const journalViewAudio = $('#journal-view-audio');
 const journalStatCount = $('#journal-stat-count');
 const journalStatHours = $('#journal-stat-hours');
 const journalStatLatest = $('#journal-stat-latest');
@@ -1736,8 +1605,6 @@ function renderJournalReader() {
   const journalTags = [
     record.stage,
     record.aircraft,
-    record.location ? `LOC · ${record.location}` : '',
-    record.voiceSource === 'PLAUD' ? 'PLAUD · IMPORTED' : '',
     Number(record.hours) ? `${Number(record.hours).toFixed(1)} H` : '',
     record.mood ? `MOOD · ${record.mood}` : '',
     record.weather ? `INNER WEATHER · ${record.weather}` : ''
@@ -1757,20 +1624,14 @@ function renderJournalReader() {
     });
     journalViewPhotos.appendChild(button);
   });
-  journalTranscriptBlock.hidden = !record.transcript;
-  journalSummaryBlock.hidden = !record.summary;
-  journalFutureBlock.hidden = !record.futureLine;
-  if (record.transcript) journalViewTranscript.textContent = record.transcript;
-  if (record.summary) journalViewSummary.textContent = record.summary;
-  if (record.futureLine) journalViewFuture.textContent = `“${record.futureLine}”`;
   if (record.voice?.blob) {
+    const voiceUrl = URL.createObjectURL(record.voice.blob);
+    journalViewObjectUrls.push(voiceUrl);
+    journalViewAudio.src = voiceUrl;
     journalVoicePlayback.hidden = false;
-    journalVoiceLabel.textContent = record.voiceSource === 'PLAUD' ? 'PLAUD · 那一天的真实声音' : '那一天的声音';
-    journalVoiceSource.textContent = record.voiceSource === 'PLAUD' ? 'PLAUD IMPORT' : 'HH022 CVR';
-    renderWaveformPlayer(journalWaveformPlayer, record.voice.blob, { duration:record.voice.duration, urls:journalViewObjectUrls, label:record.title });
   } else {
+    journalViewAudio.removeAttribute('src');
     journalVoicePlayback.hidden = true;
-    journalWaveformPlayer.innerHTML = '';
   }
   const idx = records.findIndex((item) => item.id === record.id);
   journalPagePosition.textContent = `${String(idx + 1).padStart(2,'0')} / ${String(records.length).padStart(2,'0')}`;
@@ -1895,7 +1756,6 @@ function openJournalForm(record = null) {
   journalDate.value = record?.date || localISODate();
   journalStage.value = record?.stage || '基础训练';
   journalAircraft.value = record?.aircraft || '';
-  journalLocation.value = record?.location || '';
   journalHours.value = record?.hours || '';
   journalMood.value = record?.mood || '平静';
   journalWeather.value = record?.weather || 'CAVOK';
@@ -1903,7 +1763,6 @@ function openJournalForm(record = null) {
   journalTitle.value = record?.title || '';
   journalNote.value = record?.note || '';
   journalLesson.value = record?.lesson || '';
-  journalFutureLine.value = record?.futureLine || '';
   journalFiles.value = '';
   journalFormError.textContent = '';
   journalFormShell.hidden = false;
@@ -1967,7 +1826,6 @@ journalForm?.addEventListener('submit', async (event) => {
       date: journalDate.value,
       stage: journalStage.value,
       aircraft: journalAircraft.value.trim(),
-      location: journalLocation.value.trim(),
       hours: Number(journalHours.value) || 0,
       mood: journalMood.value,
       weather: journalWeather.value || 'CAVOK',
@@ -1975,10 +1833,6 @@ journalForm?.addEventListener('submit', async (event) => {
       title: journalTitle.value.trim(),
       note: journalNote.value.trim(),
       lesson: journalLesson.value.trim(),
-      futureLine: journalFutureLine.value.trim(),
-      transcript: existing?.transcript || '',
-      summary: existing?.summary || '',
-      voiceSource: journalVoiceBlob ? 'HH022 CVR' : (journalVoiceWasCleared ? '' : (existing?.voiceSource || '')),
       photos,
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1998,450 +1852,6 @@ journalForm?.addEventListener('submit', async (event) => {
     journalSave.firstChild.textContent = 'SAVE TRAINING LOG ';
   }
 });
-
-
-/* =========================================================
-   V9 · PLAUD × HH022 PERSONAL BLACK BOX
-   Import exported audio/transcripts, render real waveforms,
-   bind voices to journal / globe / constellation / badges.
-   ========================================================= */
-const plaudForm = $('#plaud-import-form');
-const plaudDate = $('#plaud-date');
-const plaudLocation = $('#plaud-location');
-const plaudStage = $('#plaud-stage');
-const plaudAircraft = $('#plaud-aircraft');
-const plaudHours = $('#plaud-hours');
-const plaudMood = $('#plaud-mood');
-const plaudWeather = $('#plaud-weather');
-const plaudTitle = $('#plaud-title');
-const plaudAudio = $('#plaud-audio');
-const plaudTranscript = $('#plaud-transcript');
-const plaudSummary = $('#plaud-summary');
-const plaudFutureLine = $('#plaud-future-line');
-const plaudFormError = $('#plaud-form-error');
-const plaudImportSave = $('#plaud-import-save');
-const plaudAudioName = $('#plaud-audio-name');
-const plaudTranscriptName = $('#plaud-transcript-name');
-const plaudSummaryName = $('#plaud-summary-name');
-const voiceArchiveCount = $('#voice-archive-count');
-const voiceArchiveList = $('#voice-archive-list');
-const voiceArchiveEmpty = $('#voice-archive-empty');
-const firstSoloBox = $('#first-solo-box');
-const firstSoloTitle = $('#first-solo-title');
-const firstSoloMeta = $('#first-solo-meta');
-const firstSoloWaveform = $('#first-solo-waveform');
-const firstSoloFuture = $('#first-solo-future');
-const firstSoloOpen = $('#first-solo-open');
-const futureEchoKicker = $('#future-echo-kicker');
-const futureEchoText = $('#future-echo-text');
-const futureEchoOpen = $('#future-echo-open');
-
-let blackBoxObjectUrls = [];
-function clearBlackBoxObjectUrls() {
-  blackBoxObjectUrls.forEach((url) => URL.revokeObjectURL(url));
-  blackBoxObjectUrls = [];
-}
-function resolveAirportFromLocation(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-  const code = raw.toUpperCase().slice(0,3);
-  if (AIRPORTS[code]) return { code, airport:AIRPORTS[code] };
-  const lower = raw.toLowerCase();
-  const entry = Object.entries(AIRPORTS).find(([key, airport]) => key.toLowerCase() === lower || airport.city.toLowerCase().includes(lower) || airport.name.toLowerCase().includes(lower) || lower.includes(airport.city.toLowerCase()));
-  return entry ? { code:entry[0], airport:entry[1] } : null;
-}
-function getVoiceMapRecords() {
-  if (typeof journalRecords === 'undefined') return [];
-  return journalRecords.filter((item) => item.voice?.blob && item.location).map((item) => {
-    const resolved = resolveAirportFromLocation(item.location);
-    return resolved ? { ...resolved, journalId:item.id, record:item } : null;
-  }).filter(Boolean);
-}
-function readAudioDuration(blob) {
-  return new Promise((resolve) => {
-    if (!blob) return resolve(0);
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio();
-    const done = (value=0) => { URL.revokeObjectURL(url); resolve(Number.isFinite(value) ? value : 0); };
-    audio.preload = 'metadata';
-    audio.onloadedmetadata = () => done(audio.duration);
-    audio.onerror = () => done(0);
-    audio.src = url;
-  });
-}
-function cleanPlaudText(text) {
-  return String(text || '')
-    .replace(/^WEBVTT\s*/i,'')
-    .replace(/^\s*\d+\s*$/gm,'')
-    .replace(/^\s*\d{1,2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{1,2}:\d{2}:\d{2}[,.]\d{3}.*$/gm,'')
-    .replace(/^\s*\d{1,2}:\d{2}[,.]\d{3}\s*-->\s*\d{1,2}:\d{2}[,.]\d{3}.*$/gm,'')
-    .replace(/\n{3,}/g,'\n\n').trim();
-}
-function pickWavePeaks(buffer, bars=160) {
-  const data = buffer.getChannelData(0);
-  const size = Math.max(1, Math.floor(data.length / bars));
-  const peaks = [];
-  for (let i=0;i<bars;i++) {
-    let max=0;
-    const start=i*size, end=Math.min(data.length,start+size);
-    for(let j=start;j<end;j+=Math.max(1,Math.floor(size/40))) max=Math.max(max,Math.abs(data[j]));
-    peaks.push(Math.max(.025,max));
-  }
-  const maxPeak=Math.max(...peaks,.001);
-  return peaks.map(v=>v/maxPeak);
-}
-async function decodeWaveform(blob, bars=160) {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) throw new Error('No AudioContext');
-    const ctx = new AudioCtx();
-    const array = await blob.arrayBuffer();
-    const buffer = await ctx.decodeAudioData(array.slice(0));
-    const peaks = pickWavePeaks(buffer,bars);
-    await ctx.close?.();
-    return peaks;
-  } catch {
-    const seed = `${blob?.size || 1}-${blob?.type || 'audio'}`;
-    return Array.from({length:bars},(_,i)=>.14 + hash01(`${seed}-${i}`)*.86);
-  }
-}
-function drawWaveCanvas(canvas, peaks, progress=0) {
-  const rect=canvas.getBoundingClientRect();
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  const width=Math.max(260,Math.round(rect.width||600)), height=Math.max(52,Math.round(rect.height||72));
-  if(canvas.width!==Math.round(width*dpr)||canvas.height!==Math.round(height*dpr)){canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}
-  const ctx=canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,width,height);
-  const count=peaks.length, gap=2.2, barW=Math.max(1,(width-gap*(count-1))/count);
-  const center=height/2;
-  peaks.forEach((v,i)=>{const h=Math.max(3,v*(height*.78));const x=i*(barW+gap);ctx.fillStyle=(i/count)<=progress?'rgba(205,183,143,.96)':'rgba(126,164,184,.28)';ctx.fillRect(x,center-h/2,barW,h);});
-  const x=Math.max(0,Math.min(width,width*progress));ctx.fillStyle='rgba(241,239,233,.92)';ctx.fillRect(x-0.5,5,1,height-10);
-}
-function renderWaveformPlayer(container, blob, options={}) {
-  if (!container || !blob) return;
-  const url=URL.createObjectURL(blob); (options.urls || blackBoxObjectUrls).push(url);
-  container.innerHTML=`<div class="wave-controls"><button type="button" class="wave-play" aria-label="播放/暂停">▶</button><span class="wave-time">00:00</span><strong>${escapeHtml(options.label || 'VOICE RECORD')}</strong><span class="wave-duration">${formatVoiceTime(options.duration || 0)}</span></div><canvas class="wave-canvas" aria-label="音频波形，可点击跳转"></canvas><audio preload="metadata" src="${url}"></audio>`;
-  const audio=$('audio',container), canvas=$('.wave-canvas',container), play=$('.wave-play',container), time=$('.wave-time',container), durationEl=$('.wave-duration',container);
-  let peaks=Array.from({length:120},(_,i)=>.12+hash01(`${blob.size}-${i}`)*.55);
-  const redraw=()=>drawWaveCanvas(canvas,peaks,audio.duration ? audio.currentTime/audio.duration : 0);
-  decodeWaveform(blob, window.innerWidth<650?90:150).then((data)=>{peaks=data;redraw();});
-  audio.addEventListener('loadedmetadata',()=>{durationEl.textContent=formatVoiceTime(audio.duration||options.duration);redraw();});
-  audio.addEventListener('timeupdate',()=>{time.textContent=formatVoiceTime(audio.currentTime);redraw();});
-  audio.addEventListener('play',()=>{play.textContent='❚❚';container.classList.add('playing');});
-  audio.addEventListener('pause',()=>{play.textContent='▶';container.classList.remove('playing');});
-  audio.addEventListener('ended',()=>{play.textContent='▶';container.classList.remove('playing');});
-  play.addEventListener('click',()=>audio.paused?audio.play().catch(()=>{}):audio.pause());
-  canvas.addEventListener('click',(event)=>{if(!audio.duration)return;const rect=canvas.getBoundingClientRect();audio.currentTime=Math.max(0,Math.min(audio.duration,(event.clientX-rect.left)/rect.width*audio.duration));});
-  if('ResizeObserver' in window)new ResizeObserver(redraw).observe(container);
-}
-function isSoloRecord(item) {
-  const corpus=journalSearchText(item);
-  return ['首次单飞','单飞','独飞','独立飞行','first solo','solo flight','solo'].some((word)=>corpus.includes(word.toLowerCase()));
-}
-function findFirstSoloVoiceRecord() {
-  return [...journalRecords].filter((item)=>item.voice?.blob && isSoloRecord(item)).sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0] || null;
-}
-function renderPlaudBlackBox() {
-  if (!voiceArchiveList) return;
-  clearBlackBoxObjectUrls();
-  const voices=[...journalRecords].filter((item)=>item.voice?.blob).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  voiceArchiveCount.textContent=`${String(voices.length).padStart(2,'0')} RECORD${voices.length===1?'':'S'}`;
-  voiceArchiveEmpty.hidden=voices.length>0;
-  voiceArchiveList.innerHTML='';
-  voices.forEach((item,index)=>{
-    const resolved=resolveAirportFromLocation(item.location);
-    const button=document.createElement('button');button.type='button';button.className='voice-archive-item';button.dataset.id=item.id;
-    button.innerHTML=`<span class="voice-index">${String(index+1).padStart(2,'0')}</span><div><span>${escapeHtml(prettyDate(item.date))}${resolved?` · ${escapeHtml(resolved.code)}`:''}</span><strong>${escapeHtml(item.title||'Voice record')}</strong><small>${escapeHtml(item.voiceSource==='PLAUD'?'PLAUD IMPORT':'HH022 CVR')} · ${formatVoiceTime(item.voice?.duration||0)}${item.futureLine?' · FUTURE LINE':''}</small></div><i>▶</i>`;
-    button.addEventListener('click',()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(item.id),reducedMotion?0:420);});
-    voiceArchiveList.appendChild(button);
-  });
-  const solo=findFirstSoloVoiceRecord();
-  firstSoloBox.hidden=!solo;
-  if(solo){
-    firstSoloTitle.textContent=solo.title||'FIRST SOLO';
-    const loc=resolveAirportFromLocation(solo.location);
-    firstSoloMeta.textContent=[prettyDate(solo.date),solo.aircraft,loc?.code||solo.location,formatVoiceTime(solo.voice?.duration)].filter(Boolean).join(' · ');
-    firstSoloFuture.textContent=solo.futureLine?`“${solo.futureLine}”`:'这一段声音会一直被置顶在这里。';
-    firstSoloWaveform.innerHTML='';
-    renderWaveformPlayer(firstSoloWaveform,solo.voice.blob,{duration:solo.voice.duration,urls:blackBoxObjectUrls,label:'FIRST SOLO CVR'});
-    firstSoloOpen.onclick=()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(solo.id),reducedMotion?0:420);};
-  }
-}
-function renderFutureEcho() {
-  if(!futureEchoText)return;
-  const candidates=[...journalRecords].filter((item)=>String(item.futureLine||'').trim()).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  if(!candidates.length){futureEchoKicker.textContent='A MESSAGE IS WAITING';futureEchoText.textContent='写下一句给未来的自己。等飞得更远以后，它会从过去回来找你。';futureEchoOpen.hidden=true;return;}
-  const item=candidates[0];
-  const hoursAfter=journalRecords.filter((r)=>(r.date||'')>(item.date||'')).reduce((sum,r)=>sum+(Number(r.hours)||0),0);
-  futureEchoKicker.textContent=hoursAfter>0?`FROM YOU · ${hoursAfter.toFixed(1)} FLIGHT HOURS AGO`:`FROM YOU · ${prettyDate(item.date)}`;
-  futureEchoText.textContent=`“${item.futureLine}”`;
-  futureEchoOpen.hidden=false;futureEchoOpen.onclick=()=>{$('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(item.id),reducedMotion?0:420);};
-}
-function syncPlaudFileLabels(){
-  if(plaudAudioName)plaudAudioName.textContent=plaudAudio.files?.[0]?.name||'MP3 / WAV / M4A / WEBM';
-  if(plaudTranscriptName)plaudTranscriptName.textContent=plaudTranscript.files?.[0]?.name||'TXT / MD / SRT / VTT · 可选';
-  if(plaudSummaryName)plaudSummaryName.textContent=plaudSummary.files?.[0]?.name||'TXT / MD · 可选';
-  const audio=plaudAudio.files?.[0]; if(audio && !plaudTitle.value.trim()) plaudTitle.value=audio.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').slice(0,60);
-}
-[plaudAudio,plaudTranscript,plaudSummary].forEach((input)=>input?.addEventListener('change',syncPlaudFileLabels));
-plaudForm?.addEventListener('submit',async(event)=>{
-  event.preventDefault();
-  const audioFile=plaudAudio.files?.[0]||null, transcriptFile=plaudTranscript.files?.[0]||null, summaryFile=plaudSummary.files?.[0]||null;
-  if(!audioFile&&!transcriptFile&&!summaryFile){plaudFormError.textContent='至少选择一份 PLAUD 录音、转写或总结文件。';return;}
-  if(!plaudDate.value||!plaudTitle.value.trim()){plaudFormError.textContent='日期和标题需要填写。';return;}
-  plaudFormError.textContent='';plaudImportSave.disabled=true;plaudImportSave.firstChild.textContent='ARCHIVING... ';
-  try{
-    const transcript=transcriptFile?cleanPlaudText(await transcriptFile.text()):'';
-    const summary=summaryFile?cleanPlaudText(await summaryFile.text()):'';
-    const voice=audioFile?{blob:audioFile,duration:await readAudioDuration(audioFile),type:audioFile.type||'audio/mpeg',name:audioFile.name,source:'PLAUD'}:null;
-    const note=(summary||transcript||'来自 PLAUD 的一次飞行复盘。').slice(0,1600);
-    const lesson=(summary||'').slice(0,1000);
-    const record={id:makeId('journal'),date:plaudDate.value,stage:plaudStage.value,aircraft:plaudAircraft.value.trim(),location:plaudLocation.value.trim(),hours:Number(plaudHours.value)||0,mood:plaudMood.value,weather:plaudWeather.value||'CAVOK',voice,voiceSource:'PLAUD',title:plaudTitle.value.trim(),note,lesson,transcript,summary,futureLine:plaudFutureLine.value.trim(),photos:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-    await idbPut(JOURNAL_STORE,record);journalRecords=await idbGetAll(JOURNAL_STORE);selectedJournalId=record.id;renderJournalIndex();renderPlaudBlackBox();refreshLifeOS();
-    plaudForm.reset();plaudDate.value=localISODate();syncPlaudFileLabels();
-    $('#journal')?.scrollIntoView({behavior:reducedMotion?'auto':'smooth'});setTimeout(()=>selectJournal(record.id),reducedMotion?0:500);
-  }catch(error){console.warn(error);plaudFormError.textContent='归档失败。录音文件很大时，可以先从 PLAUD 导出体积更小的版本再试。';}
-  finally{plaudImportSave.disabled=false;plaudImportSave.firstChild.textContent='ARCHIVE TO HH022 ';}
-});
-
-
-/* =========================================================
-   V9.1 · FUTURE MAIL / TIME CAPSULE
-   A letter remains sealed until its chosen local calendar date.
-   ========================================================= */
-const futureMailNew = $('#future-mail-new');
-const futureMailFormShell = $('#future-mail-form-shell');
-const futureMailFormClose = $('#future-mail-form-close');
-const futureMailForm = $('#future-mail-form');
-const futureMailFormTitle = $('#future-mail-form-title');
-const futureMailDate = $('#future-mail-date');
-const futureMailTitle = $('#future-mail-title');
-const futureMailMessage = $('#future-mail-message');
-const futureMailError = $('#future-mail-error');
-const futureMailSave = $('#future-mail-save');
-const futureMailCount = $('#future-mail-count');
-const futureMailWaiting = $('#future-mail-waiting');
-const futureMailArrived = $('#future-mail-arrived');
-const futureMailNext = $('#future-mail-next');
-const futureMailList = $('#future-mail-list');
-const futureMailEmpty = $('#future-mail-empty');
-const futureMailModal = $('#future-mail-modal');
-const futureMailModalBackdrop = $('#future-mail-modal-backdrop');
-const futureMailModalClose = $('#future-mail-modal-close');
-const futureMailModalDate = $('#future-mail-modal-date');
-const futureMailModalTitle = $('#future-mail-modal-title');
-const futureMailModalOrigin = $('#future-mail-modal-origin');
-const futureMailModalMessage = $('#future-mail-modal-message');
-const futureMailModalQueue = $('#future-mail-modal-queue');
-const futureMailModalArchive = $('#future-mail-modal-archive');
-const futureMailModalNext = $('#future-mail-modal-next');
-
-let futureMailRecords = [];
-let editingFutureMailId = null;
-let activeFutureMailId = null;
-let futureMailReady = false;
-
-function futureMailIsDue(item) {
-  return Boolean(item?.unlockDate) && item.unlockDate <= localISODate();
-}
-function futureMailDaysUntil(item) {
-  if (!item?.unlockDate) return null;
-  const today = new Date(`${localISODate()}T00:00:00`);
-  const target = new Date(`${item.unlockDate}T00:00:00`);
-  return Math.ceil((target - today) / 86400000);
-}
-function futureMailMonthDay(date) {
-  if (!date) return { day:'—', month:'—' };
-  const parts = date.split('-');
-  return { day:parts[2] || '—', month:`${parts[0]}.${parts[1]}` };
-}
-function futureMailStatus(item) {
-  if (!futureMailIsDue(item)) return { key:'waiting', label:'IN TRANSIT' };
-  if (item.openedAt) return { key:'opened', label:'OPENED' };
-  return { key:'due', label:'ARRIVED' };
-}
-function futureMailSummary(item) {
-  if (!futureMailIsDue(item)) {
-    const days = futureMailDaysUntil(item);
-    if (days === 0) return '今天抵达';
-    if (days === 1) return '明天抵达';
-    return days > 1 ? `${days} DAYS TO DELIVERY` : `DELIVERS ${prettyDate(item.unlockDate)}`;
-  }
-  return item.openedAt ? `OPENED ${prettyDate(String(item.openedAt).slice(0,10))}` : 'READY TO OPEN';
-}
-function resetFutureMailForm() {
-  editingFutureMailId = null;
-  futureMailForm?.reset();
-  if (futureMailDate) {
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    const offset = tomorrow.getTimezoneOffset() * 60000;
-    futureMailDate.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0,10);
-    futureMailDate.min = localISODate();
-  }
-  if (futureMailFormTitle) futureMailFormTitle.textContent = '写一封定时信';
-  if (futureMailSave) futureMailSave.firstChild.textContent = 'SEAL & SCHEDULE ';
-  if (futureMailError) futureMailError.textContent = '';
-}
-function openFutureMailForm(record = null) {
-  if (!futureMailFormShell) return;
-  resetFutureMailForm();
-  if (record) {
-    editingFutureMailId = record.id;
-    futureMailDate.value = record.unlockDate || localISODate();
-    futureMailTitle.value = record.title || '';
-    futureMailMessage.value = record.message || '';
-    futureMailFormTitle.textContent = '修改尚未抵达的信';
-    futureMailSave.firstChild.textContent = 'RESEAL LETTER ';
-  }
-  futureMailFormShell.hidden = false;
-  requestAnimationFrame(() => futureMailFormShell.scrollIntoView({ behavior:reducedMotion?'auto':'smooth', block:'center' }));
-}
-function closeFutureMailForm() {
-  if (!futureMailFormShell) return;
-  futureMailFormShell.hidden = true;
-  resetFutureMailForm();
-}
-function renderFutureMailArchive() {
-  if (!futureMailList) return;
-  const sorted = [...futureMailRecords].sort((a,b) => (b.unlockDate || '').localeCompare(a.unlockDate || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const waiting = sorted.filter((item) => !futureMailIsDue(item));
-  const arrived = sorted.filter(futureMailIsDue);
-  futureMailCount.textContent = `${String(sorted.length).padStart(2,'0')} LETTER${sorted.length===1?'':'S'}`;
-  futureMailWaiting.textContent = String(waiting.length);
-  futureMailArrived.textContent = String(arrived.length);
-  const next = [...waiting].sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''))[0];
-  futureMailNext.textContent = next ? prettyDate(next.unlockDate) : '—';
-  futureMailEmpty.hidden = sorted.length > 0;
-  futureMailList.innerHTML = '';
-  sorted.forEach((item) => {
-    const status = futureMailStatus(item);
-    const md = futureMailMonthDay(item.unlockDate);
-    const wrapper = document.createElement('div');
-    wrapper.className = `future-mail-item ${status.key}`;
-    wrapper.innerHTML = `
-      <div class="future-mail-item-date"><strong>${escapeHtml(md.day)}</strong><span>${escapeHtml(md.month)}</span></div>
-      <button class="future-mail-item-copy" type="button" aria-label="${futureMailIsDue(item)?'打开':'查看'} ${escapeHtml(item.title || '未来来信')}">
-        <span>${futureMailIsDue(item) ? 'DELIVERED FUTURE MAIL' : 'SEALED FUTURE MAIL'}</span>
-        <strong>${escapeHtml(item.title || 'Untitled future mail')}</strong>
-        <small>${escapeHtml(futureMailSummary(item))}</small>
-      </button>
-      <div class="future-mail-item-status"><i></i>${escapeHtml(status.label)}</div>
-      <div class="future-mail-item-actions">
-        ${!futureMailIsDue(item) ? `<button type="button" data-action="edit">EDIT BEFORE DELIVERY</button>` : ''}
-        <button type="button" class="danger" data-action="delete">DELETE</button>
-      </div>`;
-    $('.future-mail-item-copy', wrapper).addEventListener('click', () => {
-      if (!futureMailIsDue(item)) {
-        const days = futureMailDaysUntil(item);
-        window.alert(days === 1 ? '这封信会在明天解锁。' : `这封信仍在途中，将于 ${prettyDate(item.unlockDate)} 解锁。`);
-        return;
-      }
-      openFutureMail(item.id, false);
-    });
-    const edit = $('[data-action="edit"]', wrapper);
-    edit?.addEventListener('click', () => openFutureMailForm(item));
-    $('[data-action="delete"]', wrapper)?.addEventListener('click', async () => {
-      if (!window.confirm('删除这封未来来信？删除后无法恢复。')) return;
-      await idbDelete(FUTURE_MAIL_STORE, item.id);
-      futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
-      renderFutureMailArchive();
-    });
-    futureMailList.appendChild(wrapper);
-  });
-}
-async function markFutureMailOpened(item) {
-  if (!item.openedAt) item.openedAt = new Date().toISOString();
-  item.updatedAt = new Date().toISOString();
-  await idbPut(FUTURE_MAIL_STORE, item);
-}
-async function openFutureMail(id, auto = false) {
-  const item = futureMailRecords.find((record) => record.id === id);
-  if (!item || !futureMailIsDue(item) || !futureMailModal) return;
-  activeFutureMailId = item.id;
-  await markFutureMailOpened(item);
-  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
-  futureMailModalDate.textContent = `DELIVERED · ${prettyDate(item.unlockDate)}`;
-  futureMailModalTitle.textContent = item.title || '一封来自过去的信';
-  futureMailModalOrigin.textContent = `WRITTEN ${prettyDate(String(item.createdAt || '').slice(0,10))}`;
-  futureMailModalMessage.textContent = item.message || '';
-  const queue = futureMailRecords.filter((record) => futureMailIsDue(record) && !record.notifiedAt && record.id !== item.id).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''));
-  futureMailModalQueue.textContent = auto ? (queue.length ? `还有 ${queue.length} 封已抵达的信等待签收` : '这封信，刚刚从过去抵达。') : '已解锁 · 可随时在时间信箱重新打开';
-  futureMailModalNext.hidden = !auto || queue.length === 0;
-  futureMailModal.hidden = false;
-  document.body.classList.add('future-mail-open');
-  renderFutureMailArchive();
-}
-async function acknowledgeActiveFutureMail() {
-  if (!activeFutureMailId) return;
-  const item = futureMailRecords.find((record) => record.id === activeFutureMailId);
-  if (!item || item.notifiedAt) return;
-  item.notifiedAt = new Date().toISOString();
-  item.updatedAt = new Date().toISOString();
-  await idbPut(FUTURE_MAIL_STORE, item);
-  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
-}
-async function closeFutureMailModal() {
-  await acknowledgeActiveFutureMail();
-  activeFutureMailId = null;
-  futureMailModal.hidden = true;
-  document.body.classList.remove('future-mail-open');
-  renderFutureMailArchive();
-}
-async function maybeAutoDeliverFutureMail() {
-  if (!futureMailReady || !document.body.classList.contains('entered') || !futureMailModal?.hidden) return;
-  const due = [...futureMailRecords].filter((item) => futureMailIsDue(item) && !item.notifiedAt).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||'') || (a.createdAt||'').localeCompare(b.createdAt||''));
-  if (!due.length) return;
-  await openFutureMail(due[0].id, true);
-}
-
-futureMailNew?.addEventListener('click', () => openFutureMailForm());
-futureMailFormClose?.addEventListener('click', closeFutureMailForm);
-futureMailForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const unlockDate = futureMailDate.value;
-  const title = futureMailTitle.value.trim();
-  const message = futureMailMessage.value.trim();
-  if (!unlockDate || !title || !message) { futureMailError.textContent = '开启日期、标题和正文都需要填写。'; return; }
-  if (unlockDate < localISODate()) { futureMailError.textContent = '开启日期不能早于今天。'; return; }
-  futureMailError.textContent = '';
-  futureMailSave.disabled = true;
-  try {
-    const old = editingFutureMailId ? futureMailRecords.find((item)=>item.id===editingFutureMailId) : null;
-    const record = {
-      id: old?.id || makeId('future-mail'),
-      title,
-      message,
-      unlockDate,
-      createdAt: old?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      openedAt: old?.openedAt || null,
-      notifiedAt: old?.notifiedAt || null
-    };
-    await idbPut(FUTURE_MAIL_STORE, record);
-    futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
-    renderFutureMailArchive();
-    closeFutureMailForm();
-  } catch (error) {
-    console.warn(error);
-    futureMailError.textContent = '封存失败，请稍后再试。';
-  } finally {
-    futureMailSave.disabled = false;
-  }
-});
-futureMailModalClose?.addEventListener('click', closeFutureMailModal);
-futureMailModalBackdrop?.addEventListener('click', closeFutureMailModal);
-futureMailModalArchive?.addEventListener('click', async () => {
-  await closeFutureMailModal();
-  $('#future-mail')?.scrollIntoView({ behavior:reducedMotion?'auto':'smooth', block:'start' });
-});
-futureMailModalNext?.addEventListener('click', async () => {
-  await acknowledgeActiveFutureMail();
-  const next = [...futureMailRecords].filter((item)=>futureMailIsDue(item) && !item.notifiedAt && item.id !== activeFutureMailId).sort((a,b)=>(a.unlockDate||'').localeCompare(b.unlockDate||''))[0];
-  if (next) await openFutureMail(next.id, true); else await closeFutureMailModal();
-});
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && futureMailModal && !futureMailModal.hidden) closeFutureMailModal();
-});
-
 
 /* ---------- Portable private archive backup ---------- */
 function blobToDataUrl(blob) {
@@ -2464,7 +1874,6 @@ function dataUrlToBlob(dataUrl) {
 async function exportPrivateArchive() {
   const gallery = await idbGetAll(GALLERY_STORE);
   const journal = await idbGetAll(JOURNAL_STORE);
-  const futureMail = await idbGetAll(FUTURE_MAIL_STORE);
   const galleryPortable = [];
   for (const item of gallery) galleryPortable.push({ ...item, blob: await blobToDataUrl(item.blob) });
   const journalPortable = [];
@@ -2476,11 +1885,10 @@ async function exportPrivateArchive() {
   }
   const payload = {
     kind: 'HH022_PRIVATE_ARCHIVE',
-    version: 3,
+    version: 2,
     exportedAt: new Date().toISOString(),
     gallery: galleryPortable,
     journal: journalPortable,
-    futureMail,
     flights: readLocalFlights(),
     milestones: readGrowthMilestones(),
     wish: localStorage.getItem(STORAGE_KEY) || null
@@ -2506,10 +1914,6 @@ async function importPrivateArchive(file) {
     const voice = item.voice?.blob ? { ...item.voice, blob:dataUrlToBlob(item.voice.blob) } : null;
     await idbPut(JOURNAL_STORE, { ...item, photos, voice });
   }
-  for (const item of payload.futureMail || []) {
-    if (!item?.id || !item?.unlockDate) continue;
-    await idbPut(FUTURE_MAIL_STORE, item);
-  }
   if (payload.milestones && typeof payload.milestones === 'object') {
     localStorage.setItem(GROWTH_MILESTONE_KEY, JSON.stringify(payload.milestones));
   }
@@ -2521,13 +1925,10 @@ async function importPrivateArchive(file) {
   if (payload.wish) localStorage.setItem(STORAGE_KEY, payload.wish);
   galleryLocalRecords = await idbGetAll(GALLERY_STORE);
   journalRecords = await idbGetAll(JOURNAL_STORE);
-  futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE);
   renderGallery();
   renderJournalIndex();
-  renderFutureMailArchive();
   refreshLifeOS();
 }
-
 
 galleryExport?.addEventListener('click', async () => {
   galleryExport.disabled = true;
@@ -2594,7 +1995,6 @@ const weatherSummary = $('#weather-summary');
 
 let constellationPoints = [];
 let constellationRenderFrame = 0;
-let constellationPulseTimer = 0;
 
 function readGrowthMilestones() {
   try { return JSON.parse(localStorage.getItem(GROWTH_MILESTONE_KEY) || '{}') || {}; }
@@ -2614,11 +2014,7 @@ function journalSearchText(item) {
     item?.lesson,
     item?.mood,
     item?.weather,
-    item?.aircraft,
-    item?.location,
-    item?.futureLine,
-    item?.transcript,
-    item?.summary
+    item?.aircraft
   ].filter(Boolean).join(' ').toLowerCase();
 }
 function journalHasAnyKeyword(keywords) {
@@ -2710,8 +2106,7 @@ function renderBadges() {
     { symbol:'3T', title:'TYPE COLLECTOR', note:'记录 3 种不同机型', unlocked:m.types.size >= 3 },
     { symbol:'5A', title:'AIRPORT EXPLORER', note:'去过 5 个机场', unlocked:m.airports.size >= 5 },
     { symbol:'10F', title:'TEN FLIGHTS', note:'记录 10 程航班', unlocked:m.flights.length >= 10 },
-    { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) },
-    { symbol:'S·V', title:'FIRST SOLO CVR', note:'第一次单飞的声音被永久封存', unlocked:Boolean(findFirstSoloVoiceRecord()) }
+    { symbol:'CVR', title:'BLACK BOX', note:'留下一段训练语音', unlocked:journalRecords.some((item) => item.voice?.blob) }
   ];
   const unlockedCount = defs.filter((item) => item.unlocked).length;
   badgeProgress.textContent = `${unlockedCount} / ${defs.length} UNLOCKED`;
@@ -2785,7 +2180,7 @@ function buildConstellationEvents() {
     if (date) events.push({ id:`timeline-${index}`, date, type:'memory', title:item.title, note:item.note, target:'log' });
   });
   getAllFlights().forEach((item) => events.push({ id:item.id, date:item.date, type:'flight', title:`${item.flight} · ${item.from} → ${item.to}`, note:[item.aircraft,item.operator].filter(Boolean).join(' · '), target:'flight' }));
-  journalRecords.forEach((item) => events.push({ id:item.id, date:item.date, type:item.voice?.blob ? 'voice' : 'journal', title:item.title || 'Training log', note:[item.stage,item.aircraft,item.voice?.blob ? '🎙 VOICE PRESERVED' : ''].filter(Boolean).join(' · '), target:'journal' }));
+  journalRecords.forEach((item) => events.push({ id:item.id, date:item.date, type:'journal', title:item.title || 'Training log', note:[item.stage,item.aircraft].filter(Boolean).join(' · '), target:'journal' }));
   galleryLocalRecords.forEach((item) => { if (item.date) events.push({ id:item.id, date:item.date, type:'memory', title:item.title || 'Memory', note:item.place || item.note || '', target:'gallery' }); });
   return events.filter((item) => item.date).sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 }
@@ -2811,7 +2206,6 @@ function resizeConstellationCanvas() {
   return { ctx, width, height, dpr };
 }
 function drawConstellation() {
-  clearTimeout(constellationPulseTimer);
   cancelAnimationFrame(constellationRenderFrame);
   constellationRenderFrame = requestAnimationFrame(() => {
     const sized = resizeConstellationCanvas();
@@ -2849,15 +2243,12 @@ function drawConstellation() {
       ctx.strokeStyle=grad; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     }
     constellationPoints.forEach((point,index) => {
-      const color = point.type==='flight' ? [157,217,255] : point.type==='voice' ? [120,234,220] : point.type==='journal' ? [205,183,143] : [234,182,200];
-      const pulse = point.type==='voice' ? (Math.sin(Date.now()/430 + index)*.5+.5) : 0;
-      const radius = point.type==='voice' ? 4.8 + pulse*1.7 : point.type==='journal' ? 4.4 : 3.8;
+      const color = point.type==='flight' ? [157,217,255] : point.type==='journal' ? [205,183,143] : [234,182,200];
+      const radius = point.type==='journal' ? 4.4 : 3.8;
       const glow=ctx.createRadialGradient(point.x,point.y,0,point.x,point.y,17); glow.addColorStop(0,`rgba(${color.join(',')},.38)`); glow.addColorStop(1,`rgba(${color.join(',')},0)`); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(point.x,point.y,17,0,Math.PI*2);ctx.fill();
       ctx.fillStyle=`rgb(${color.join(',')})`;ctx.beginPath();ctx.arc(point.x,point.y,radius,0,Math.PI*2);ctx.fill();
-      if(point.type==='voice'){ctx.strokeStyle=`rgba(${color.join(',')},${.22+pulse*.28})`;ctx.lineWidth=1;ctx.beginPath();ctx.arc(point.x,point.y,11+pulse*7,0,Math.PI*2);ctx.stroke();}
       if(index===constellationPoints.length-1){ctx.strokeStyle='rgba(205,183,143,.38)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(point.x,point.y,10,0,Math.PI*2);ctx.stroke();}
     });
-    if (constellationPoints.some((point)=>point.type==='voice') && !reducedMotion) constellationPulseTimer=setTimeout(drawConstellation,90);
   });
 }
 function constellationHit(event) {
@@ -2891,14 +2282,9 @@ function refreshLifeOS() {
   renderGrowthCockpit();
   renderBadges();
   renderInnerWeather();
-  renderPlaudBlackBox();
-  renderFutureEcho();
   drawConstellation();
-  if (atlasEngine) atlasEngine.setFlights(getAllFlights());
 }
 window.HH022_REFRESH_LIFE_OS = refreshLifeOS;
-// Paint badges + weather immediately; IndexedDB data will refresh them again once loaded.
-try { refreshLifeOS(); } catch (error) { console.warn('Initial Life OS render deferred:', error); }
 
 async function initPrivateVault() {
   if (!('indexedDB' in window)) {
@@ -2907,24 +2293,527 @@ async function initPrivateVault() {
     return;
   }
   try {
-    // Read each store independently so one old/missing store can never blank the badges or weather wall.
-    try { galleryLocalRecords = await idbGetAll(GALLERY_STORE); } catch (e) { console.warn('Gallery store read failed:', e); galleryLocalRecords = []; }
-    try { journalRecords = await idbGetAll(JOURNAL_STORE); } catch (e) { console.warn('Journal store read failed:', e); journalRecords = []; }
-    try { futureMailRecords = await idbGetAll(FUTURE_MAIL_STORE); } catch (e) { console.warn('Future mail store read failed:', e); futureMailRecords = []; }
-    if (galleryDate) galleryDate.value = localISODate();
-    if (journalDate) journalDate.value = localISODate();
-    if (plaudDate) plaudDate.value = localISODate();
-    resetFutureMailForm();
+    galleryLocalRecords = await idbGetAll(GALLERY_STORE);
+    journalRecords = await idbGetAll(JOURNAL_STORE);
+    galleryDate.value = localISODate();
+    journalDate.value = localISODate();
     renderGallery();
     renderJournalIndex();
-    renderFutureMailArchive();
     refreshLifeOS();
-    futureMailReady = true;
-    if (document.body.classList.contains('entered')) setTimeout(() => maybeAutoDeliverFutureMail(), 250);
   } catch (error) {
     console.warn('Private vault init failed:', error);
-    // Life OS must remain visible even if private browser storage is unavailable.
-    try { renderGallery(); renderJournalIndex(); renderFutureMailArchive(); refreshLifeOS(); } catch (renderError) { console.warn('Fallback render failed:', renderError); }
   }
 }
 initPrivateVault();
+/* =========================================================
+   V9.3 STABLE ADD-ONS
+   V8.1 core above is intentionally left intact.
+   If PLAUD or Future Mail fails, core globe/forms still work.
+   ========================================================= */
+(() => {
+  try {
+    const plaudForm = $('#plaud-import-form');
+    const plaudDate = $('#plaud-date');
+    const plaudLocation = $('#plaud-location');
+    const plaudStage = $('#plaud-stage');
+    const plaudAircraft = $('#plaud-aircraft');
+    const plaudHours = $('#plaud-hours');
+    const plaudMood = $('#plaud-mood');
+    const plaudWeather = $('#plaud-weather');
+    const plaudTitle = $('#plaud-title');
+    const plaudAudio = $('#plaud-audio');
+    const plaudTranscript = $('#plaud-transcript');
+    const plaudSummary = $('#plaud-summary');
+    const plaudFormError = $('#plaud-form-error');
+    const plaudImportSave = $('#plaud-import-save');
+    const plaudAudioName = $('#plaud-audio-name');
+    const plaudTranscriptName = $('#plaud-transcript-name');
+    const plaudSummaryName = $('#plaud-summary-name');
+    const voiceArchiveCount = $('#voice-archive-count');
+    const voiceArchiveList = $('#voice-archive-list');
+    const voiceArchiveEmpty = $('#voice-archive-empty');
+    const firstSoloBox = $('#first-solo-box');
+    const firstSoloTitle = $('#first-solo-title');
+    const firstSoloMeta = $('#first-solo-meta');
+    const firstSoloWaveform = $('#first-solo-waveform');
+    const firstSoloOpen = $('#first-solo-open');
+    const transcriptBlock = $('#journal-transcript-block');
+    const transcriptText = $('#journal-view-transcript');
+    const summaryBlock = $('#journal-summary-block');
+    const summaryText = $('#journal-view-summary');
+    let blackBoxUrls = [];
+
+    function clearBlackBoxUrls() {
+      blackBoxUrls.forEach((url) => URL.revokeObjectURL(url));
+      blackBoxUrls = [];
+    }
+    function resolveAirportFromLocation(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const direct = raw.toUpperCase().slice(0, 3);
+      if (AIRPORTS[direct]) return { code: direct, airport: AIRPORTS[direct] };
+      const lower = raw.toLowerCase();
+      const hit = Object.entries(AIRPORTS).find(([code, airport]) =>
+        code.toLowerCase() === lower ||
+        airport.city.toLowerCase().includes(lower) ||
+        airport.name.toLowerCase().includes(lower) ||
+        lower.includes(airport.city.toLowerCase())
+      );
+      return hit ? { code: hit[0], airport: hit[1] } : null;
+    }
+    window.HH022_GET_VOICE_LOCATIONS = () => journalRecords
+      .filter((record) => record.voice?.blob && record.location)
+      .map((record) => {
+        const resolved = resolveAirportFromLocation(record.location);
+        return resolved ? { ...resolved, journalId: record.id, record } : null;
+      })
+      .filter(Boolean);
+
+    function readAudioDuration(blob) {
+      return new Promise((resolve) => {
+        if (!blob) return resolve(0);
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio();
+        const done = (value = 0) => {
+          URL.revokeObjectURL(url);
+          resolve(Number.isFinite(value) ? value : 0);
+        };
+        audio.preload = 'metadata';
+        audio.onloadedmetadata = () => done(audio.duration);
+        audio.onerror = () => done(0);
+        audio.src = url;
+      });
+    }
+    function cleanPlaudText(text) {
+      return String(text || '')
+        .replace(/^WEBVTT\s*/i, '')
+        .replace(/^\s*\d+\s*$/gm, '')
+        .replace(/^\s*\d{1,2}:\d{2}(?::\d{2})?[,.]\d{3}\s*-->.*$/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+    function pseudoPeaks(seed, count = 120) {
+      let h = 2166136261;
+      for (const char of String(seed)) {
+        h ^= char.charCodeAt(0);
+        h = Math.imul(h, 16777619);
+      }
+      let x = h >>> 0;
+      return Array.from({ length: count }, () => {
+        x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+        return .12 + (x / 4294967295) * .82;
+      });
+    }
+    async function decodeWave(blob, count = 120) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) throw new Error('No AudioContext');
+        const ctx = new AudioCtx();
+        const buffer = await ctx.decodeAudioData((await blob.arrayBuffer()).slice(0));
+        const data = buffer.getChannelData(0);
+        const step = Math.max(1, Math.floor(data.length / count));
+        const peaks = [];
+        for (let i = 0; i < count; i++) {
+          let max = .01;
+          for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j += Math.max(1, Math.floor(step / 30))) {
+            max = Math.max(max, Math.abs(data[j]));
+          }
+          peaks.push(max);
+        }
+        const maxPeak = Math.max(...peaks, .01);
+        await ctx.close?.();
+        return peaks.map((value) => value / maxPeak);
+      } catch {
+        return pseudoPeaks(`${blob?.size}-${blob?.type}`, count);
+      }
+    }
+    function drawWave(canvas, peaks, progress = 0) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(220, Math.round(rect.width || 500));
+      const height = Math.max(54, Math.round(rect.height || 68));
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      const gap = 2;
+      const barWidth = Math.max(1, (width - gap * (peaks.length - 1)) / peaks.length);
+      peaks.forEach((value, index) => {
+        const barHeight = Math.max(3, value * height * .72);
+        ctx.fillStyle = index / peaks.length <= progress ? 'rgba(205,183,143,.95)' : 'rgba(126,164,184,.28)';
+        ctx.fillRect(index * (barWidth + gap), (height - barHeight) / 2, barWidth, barHeight);
+      });
+    }
+    function renderWave(container, blob, label, duration) {
+      if (!container || !blob) return;
+      const url = URL.createObjectURL(blob);
+      blackBoxUrls.push(url);
+      container.innerHTML = `
+        <div class="wave-controls">
+          <button type="button" class="wave-play">▶</button>
+          <span class="wave-time">00:00</span>
+          <strong>${escapeHtml(label || 'VOICE RECORD')}</strong>
+          <span class="wave-duration">${formatVoiceTime(duration || 0)}</span>
+        </div>
+        <canvas class="wave-canvas"></canvas>
+        <audio preload="metadata" src="${url}"></audio>`;
+      const audio = $('audio', container);
+      const canvas = $('.wave-canvas', container);
+      const play = $('.wave-play', container);
+      const time = $('.wave-time', container);
+      const durationEl = $('.wave-duration', container);
+      let peaks = pseudoPeaks(blob.size, 120);
+      const repaint = () => drawWave(canvas, peaks, audio.duration ? audio.currentTime / audio.duration : 0);
+      decodeWave(blob, window.innerWidth < 650 ? 80 : 130).then((values) => { peaks = values; repaint(); });
+      audio.addEventListener('loadedmetadata', () => { durationEl.textContent = formatVoiceTime(audio.duration || duration); repaint(); });
+      audio.addEventListener('timeupdate', () => { time.textContent = formatVoiceTime(audio.currentTime); repaint(); });
+      audio.addEventListener('play', () => { play.textContent = '❚❚'; container.classList.add('playing'); });
+      audio.addEventListener('pause', () => { play.textContent = '▶'; container.classList.remove('playing'); });
+      play.addEventListener('click', () => audio.paused ? audio.play().catch(() => {}) : audio.pause());
+      canvas.addEventListener('click', (event) => {
+        if (!audio.duration) return;
+        const box = canvas.getBoundingClientRect();
+        audio.currentTime = Math.max(0, Math.min(audio.duration, (event.clientX - box.left) / box.width * audio.duration));
+      });
+      if ('ResizeObserver' in window) new ResizeObserver(repaint).observe(container);
+    }
+    function isSolo(record) {
+      const corpus = [record.stage, record.title, record.note, record.lesson].filter(Boolean).join(' ').toLowerCase();
+      return ['首次单飞', '单飞', '独飞', '独立飞行', 'first solo', 'solo flight', 'solo']
+        .some((key) => corpus.includes(key.toLowerCase()));
+    }
+    function renderBlackBox() {
+      if (!voiceArchiveList) return;
+      clearBlackBoxUrls();
+      const voices = [...journalRecords]
+        .filter((record) => record.voice?.blob)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      voiceArchiveCount.textContent = `${String(voices.length).padStart(2, '0')} RECORD${voices.length === 1 ? '' : 'S'}`;
+      voiceArchiveEmpty.hidden = voices.length > 0;
+      voiceArchiveList.innerHTML = '';
+      voices.forEach((record, index) => {
+        const resolved = resolveAirportFromLocation(record.location);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'voice-archive-item';
+        button.innerHTML = `
+          <span class="voice-index">${String(index + 1).padStart(2, '0')}</span>
+          <div>
+            <span>${escapeHtml(prettyDate(record.date))}${resolved ? ` · ${escapeHtml(resolved.code)}` : ''}</span>
+            <strong>${escapeHtml(record.title || 'Voice record')}</strong>
+            <small>${escapeHtml(record.voiceSource === 'PLAUD' ? 'PLAUD IMPORT' : 'HH022 CVR')} · ${formatVoiceTime(record.voice.duration || 0)}</small>
+          </div><i>▶</i>`;
+        button.addEventListener('click', () => {
+          $('#journal')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+          setTimeout(() => selectJournal(record.id), reducedMotion ? 0 : 380);
+        });
+        voiceArchiveList.appendChild(button);
+      });
+      const solo = [...voices].filter(isSolo).sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0];
+      firstSoloBox.hidden = !solo;
+      if (solo) {
+        firstSoloTitle.textContent = solo.title || 'FIRST SOLO';
+        const resolved = resolveAirportFromLocation(solo.location);
+        firstSoloMeta.textContent = [prettyDate(solo.date), solo.aircraft, resolved?.code || solo.location, formatVoiceTime(solo.voice.duration)].filter(Boolean).join(' · ');
+        firstSoloWaveform.innerHTML = '';
+        renderWave(firstSoloWaveform, solo.voice.blob, 'FIRST SOLO CVR', solo.voice.duration);
+        firstSoloOpen.onclick = () => {
+          $('#journal')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+          setTimeout(() => selectJournal(solo.id), reducedMotion ? 0 : 380);
+        };
+      }
+    }
+    function syncPlaudLabels() {
+      if (plaudAudioName) plaudAudioName.textContent = plaudAudio.files?.[0]?.name || 'MP3 / WAV / M4A / WEBM';
+      if (plaudTranscriptName) plaudTranscriptName.textContent = plaudTranscript.files?.[0]?.name || 'TXT / MD / SRT / VTT · 可选';
+      if (plaudSummaryName) plaudSummaryName.textContent = plaudSummary.files?.[0]?.name || 'TXT / MD · 可选';
+      const file = plaudAudio.files?.[0];
+      if (file && !plaudTitle.value.trim()) plaudTitle.value = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').slice(0, 60);
+    }
+    [plaudAudio, plaudTranscript, plaudSummary].forEach((input) => input?.addEventListener('change', syncPlaudLabels));
+    if (plaudDate) plaudDate.value = localISODate();
+
+    plaudForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const audioFile = plaudAudio.files?.[0] || null;
+      const transcriptFile = plaudTranscript.files?.[0] || null;
+      const summaryFile = plaudSummary.files?.[0] || null;
+      if (!audioFile && !transcriptFile && !summaryFile) {
+        plaudFormError.textContent = '至少选择一份 PLAUD 录音、转写或总结文件。';
+        return;
+      }
+      if (!plaudDate.value || !plaudTitle.value.trim()) {
+        plaudFormError.textContent = '日期和标题需要填写。';
+        return;
+      }
+      plaudFormError.textContent = '';
+      plaudImportSave.disabled = true;
+      try {
+        const transcript = transcriptFile ? cleanPlaudText(await transcriptFile.text()) : '';
+        const summary = summaryFile ? cleanPlaudText(await summaryFile.text()) : '';
+        const voice = audioFile ? {
+          blob: audioFile,
+          duration: await readAudioDuration(audioFile),
+          type: audioFile.type || 'audio/mpeg',
+          name: audioFile.name,
+          source: 'PLAUD'
+        } : null;
+        const record = {
+          id: makeId('journal'),
+          date: plaudDate.value,
+          stage: plaudStage.value,
+          aircraft: plaudAircraft.value.trim(),
+          location: plaudLocation.value.trim(),
+          hours: Number(plaudHours.value) || 0,
+          mood: plaudMood.value,
+          weather: plaudWeather.value || 'CAVOK',
+          voice,
+          voiceSource: 'PLAUD',
+          title: plaudTitle.value.trim(),
+          note: (summary || transcript || '来自 PLAUD 的一次飞行复盘。').slice(0, 1600),
+          lesson: (summary || '').slice(0, 1000),
+          transcript,
+          summary,
+          photos: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await idbPut(JOURNAL_STORE, record);
+        journalRecords = await idbGetAll(JOURNAL_STORE);
+        selectedJournalId = record.id;
+        renderJournalIndex();
+        renderBlackBox();
+        refreshLifeOS();
+        plaudForm.reset();
+        plaudDate.value = localISODate();
+        syncPlaudLabels();
+        $('#journal')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+        setTimeout(() => selectJournal(record.id), reducedMotion ? 0 : 450);
+      } catch (error) {
+        console.warn('PLAUD archive failed', error);
+        plaudFormError.textContent = '归档失败。录音太大时，可以先导出体积更小的版本再试。';
+      } finally {
+        plaudImportSave.disabled = false;
+      }
+    });
+
+    const coreRenderJournalReader = renderJournalReader;
+    renderJournalReader = function() {
+      coreRenderJournalReader();
+      const record = journalRecords.find((item) => item.id === selectedJournalId);
+      if (transcriptBlock) {
+        transcriptBlock.hidden = !record?.transcript;
+        transcriptText.textContent = record?.transcript || '';
+      }
+      if (summaryBlock) {
+        summaryBlock.hidden = !record?.summary;
+        summaryText.textContent = record?.summary || '';
+      }
+      if (record?.location && journalViewTags && !journalViewTags.textContent.includes(record.location)) {
+        const tag = document.createElement('span');
+        tag.textContent = `📍 ${record.location}`;
+        journalViewTags.appendChild(tag);
+      }
+    };
+
+    const coreRenderBadges = renderBadges;
+    renderBadges = function() {
+      coreRenderBadges();
+      if (!badgeWall) return;
+      const unlocked = [...journalRecords].some((record) => record.voice?.blob && isSolo(record));
+      const badge = document.createElement('article');
+      badge.className = `flight-badge ${unlocked ? 'unlocked' : ''}`;
+      badge.innerHTML = `
+        <div class="badge-topline"><span>FLIGHT ACHIEVEMENT</span><em>CVR</em></div>
+        <div class="badge-medal" aria-hidden="true"><span class="badge-wing badge-wing-left"></span><div class="badge-symbol">S·V</div><span class="badge-wing badge-wing-right"></span></div>
+        <strong>FIRST SOLO CVR</strong><span class="badge-note">第一次单飞的声音被封存</span>
+        <div class="badge-lock-state">${unlocked ? '<i></i> ACHIEVEMENT UNLOCKED' : 'LOCKED · KEEP FLYING'}</div>`;
+      badgeWall.appendChild(badge);
+      badgeProgress.textContent = `${badgeWall.querySelectorAll('.flight-badge.unlocked').length} / ${badgeWall.children.length} UNLOCKED`;
+    };
+
+    const coreRefreshLifeOS = refreshLifeOS;
+    refreshLifeOS = function() {
+      coreRefreshLifeOS();
+      try { renderBlackBox(); } catch (error) { console.warn('Black box render skipped', error); }
+    };
+    window.HH022_REFRESH_LIFE_OS = refreshLifeOS;
+    try { renderBlackBox(); renderBadges(); } catch (error) { console.warn('PLAUD initial render skipped', error); }
+  } catch (error) {
+    console.error('HH022 PLAUD add-on isolated failure:', error);
+  }
+})();
+
+(() => {
+  try {
+    const STORAGE = 'hh022-future-mail-v1';
+    const newButton = $('#future-mail-new');
+    const formShell = $('#future-mail-form-shell');
+    const formClose = $('#future-mail-form-close');
+    const form = $('#future-mail-form');
+    const dateInput = $('#future-mail-date');
+    const titleInput = $('#future-mail-title');
+    const messageInput = $('#future-mail-message');
+    const formError = $('#future-mail-error');
+    const count = $('#future-mail-count');
+    const waitingCount = $('#future-mail-waiting');
+    const arrivedCount = $('#future-mail-arrived');
+    const nextDate = $('#future-mail-next');
+    const list = $('#future-mail-list');
+    const empty = $('#future-mail-empty');
+    const modal = $('#future-mail-modal');
+    const modalClose = $('#future-mail-modal-close');
+    const modalBackdrop = $('#future-mail-modal-backdrop');
+    const modalDate = $('#future-mail-modal-date');
+    const modalTitle = $('#future-mail-modal-title');
+    const modalOrigin = $('#future-mail-modal-origin');
+    const modalMessage = $('#future-mail-modal-message');
+    const modalQueue = $('#future-mail-modal-queue');
+    const modalArchive = $('#future-mail-modal-archive');
+    const modalNext = $('#future-mail-modal-next');
+    let editingId = null;
+
+    const load = () => {
+      try {
+        const value = JSON.parse(localStorage.getItem(STORAGE) || '[]');
+        return Array.isArray(value) ? value : [];
+      } catch { return []; }
+    };
+    const save = (records) => localStorage.setItem(STORAGE, JSON.stringify(records));
+    const isDue = (record) => String(record.unlockDate || '') <= localISODate();
+    const daysUntil = (record) => Math.max(0, Math.ceil((new Date(`${record.unlockDate}T00:00:00`) - new Date(`${localISODate()}T00:00:00`)) / 86400000));
+
+    function setDefaultDate() {
+      const next = new Date();
+      next.setDate(next.getDate() + 1);
+      const offset = next.getTimezoneOffset() * 60000;
+      dateInput.value = new Date(next.getTime() - offset).toISOString().slice(0, 10);
+      dateInput.min = localISODate();
+    }
+    function openForm(record = null) {
+      editingId = record?.id || null;
+      formShell.hidden = false;
+      if (record) {
+        dateInput.value = record.unlockDate;
+        titleInput.value = record.title;
+        messageInput.value = record.message;
+      } else {
+        form.reset();
+        setDefaultDate();
+      }
+      formError.textContent = '';
+      formShell.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+    }
+    function closeForm() {
+      formShell.hidden = true;
+      editingId = null;
+    }
+    function openLetter(record, automatic = false) {
+      if (!record || !isDue(record)) return;
+      modalDate.textContent = `DELIVERED · ${prettyDate(record.unlockDate)}`;
+      modalTitle.textContent = record.title || '一封来自过去的信';
+      modalOrigin.textContent = `WRITTEN ${prettyDate(String(record.createdAt || '').slice(0, 10))}`;
+      modalMessage.textContent = record.message || '';
+      const all = load();
+      const queue = all.filter((item) => isDue(item) && !item.notifiedAt && item.id !== record.id);
+      modalQueue.textContent = automatic
+        ? (queue.length ? `还有 ${queue.length} 封已抵达的信等待签收` : '这封信，刚刚从过去抵达。')
+        : '已解锁 · 可随时在时间信箱重新打开';
+      modalNext.hidden = !automatic || !queue.length;
+      modal.hidden = false;
+      document.body.classList.add('future-mail-open');
+      if (automatic) {
+        const index = all.findIndex((item) => item.id === record.id);
+        if (index >= 0) {
+          all[index].notifiedAt = new Date().toISOString();
+          save(all);
+          renderArchive();
+        }
+      }
+    }
+    function closeModal() {
+      modal.hidden = true;
+      document.body.classList.remove('future-mail-open');
+    }
+    function renderArchive() {
+      if (!list) return;
+      const records = load().sort((a, b) => (b.unlockDate || '').localeCompare(a.unlockDate || ''));
+      const waiting = records.filter((item) => !isDue(item));
+      const arrived = records.filter(isDue);
+      count.textContent = `${String(records.length).padStart(2, '0')} LETTER${records.length === 1 ? '' : 'S'}`;
+      waitingCount.textContent = String(waiting.length);
+      arrivedCount.textContent = String(arrived.length);
+      nextDate.textContent = waiting.length ? prettyDate([...waiting].sort((a, b) => a.unlockDate.localeCompare(b.unlockDate))[0].unlockDate) : '—';
+      empty.hidden = records.length > 0;
+      list.innerHTML = '';
+      records.forEach((record) => {
+        const parts = String(record.unlockDate || '').split('-');
+        const article = document.createElement('article');
+        article.className = `future-mail-item ${isDue(record) ? (record.notifiedAt ? 'opened' : 'due') : 'waiting'}`;
+        const status = isDue(record) ? (record.notifiedAt ? 'OPENED' : 'ARRIVED') : 'IN TRANSIT';
+        const summary = isDue(record) ? '正文已解锁 · 点击重新打开' : `${daysUntil(record)} DAYS TO DELIVERY`;
+        article.innerHTML = `
+          <div class="future-mail-item-date"><strong>${escapeHtml(parts[2] || '--')}</strong><span>${escapeHtml(parts[0] && parts[1] ? `${parts[0]}.${parts[1]}` : '—')}</span></div>
+          <button class="future-mail-item-copy" type="button"><span>${isDue(record) ? 'DELIVERED FUTURE MAIL' : 'SEALED FUTURE MAIL'}</span><strong>${escapeHtml(record.title || 'Untitled future mail')}</strong><small>${escapeHtml(summary)}</small></button>
+          <div class="future-mail-item-status"><i></i>${status}</div>
+          <div class="future-mail-item-actions">${!isDue(record) ? '<button type="button" data-action="edit">EDIT BEFORE DELIVERY</button>' : ''}<button class="danger" type="button" data-action="delete">DELETE</button></div>`;
+        $('.future-mail-item-copy', article).addEventListener('click', () => { if (isDue(record)) openLetter(record, false); });
+        $('[data-action="edit"]', article)?.addEventListener('click', () => openForm(record));
+        $('[data-action="delete"]', article)?.addEventListener('click', () => {
+          if (!window.confirm('删除这封未来来信？')) return;
+          save(load().filter((item) => item.id !== record.id));
+          renderArchive();
+        });
+        list.appendChild(article);
+      });
+    }
+    function autoDeliver() {
+      if (!document.body.classList.contains('entered') || !modal.hidden) return;
+      const record = load()
+        .filter((item) => isDue(item) && !item.notifiedAt)
+        .sort((a, b) => (a.unlockDate || '').localeCompare(b.unlockDate || ''))[0];
+      if (record) openLetter(record, true);
+    }
+
+    newButton?.addEventListener('click', () => openForm());
+    formClose?.addEventListener('click', closeForm);
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!dateInput.value || !titleInput.value.trim() || !messageInput.value.trim()) {
+        formError.textContent = '开启日期、标题和正文都需要填写。';
+        return;
+      }
+      const records = load();
+      const existing = records.find((item) => item.id === editingId);
+      const record = {
+        id: editingId || makeId('mail'),
+        unlockDate: dateInput.value,
+        title: titleInput.value.trim(),
+        message: messageInput.value.trim(),
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        notifiedAt: existing?.notifiedAt || null
+      };
+      if (existing) Object.assign(existing, record);
+      else records.push(record);
+      save(records);
+      closeForm();
+      renderArchive();
+      if (isDue(record) && document.body.classList.contains('entered')) setTimeout(() => openLetter(record, true), 250);
+    });
+    [modalClose, modalBackdrop].forEach((button) => button?.addEventListener('click', closeModal));
+    modalArchive?.addEventListener('click', () => {
+      closeModal();
+      $('#future-mail')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+    });
+    modalNext?.addEventListener('click', () => { closeModal(); setTimeout(autoDeliver, 120); });
+    boardBtn?.addEventListener('click', () => setTimeout(autoDeliver, reducedMotion ? 80 : 1000));
+    skipIntro?.addEventListener('click', () => setTimeout(autoDeliver, reducedMotion ? 80 : 500));
+    setDefaultDate();
+    renderArchive();
+    if (document.body.classList.contains('entered')) setTimeout(autoDeliver, 250);
+  } catch (error) {
+    console.error('HH022 Future Mail add-on isolated failure:', error);
+  }
+})();

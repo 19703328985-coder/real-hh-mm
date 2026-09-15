@@ -1,9 +1,10 @@
-# HH022 V9.2 · Recovery Build
+# HH022 V9.3 Stable
 
-这版专门修复：
-- 3D 地球在部分 Safari / CDN 环境下不出现：现在使用多 CDN + 本地 Canvas 地球兜底。
-- 旧 IndexedDB 数据库结构导致勋章墙 / INNER WEATHER 不渲染：数据库版本升级到 3，并改成逐存储区容错读取。
-- 勋章墙和天气墙现在会先立即渲染，再异步读取真实日志刷新。
-- Future Mail V9.1 功能完整保留。
+这版从已验证可用的 V8.1 核心重新构建。
 
-更新 GitHub：至少覆盖 index.html / style.css / app.js。
+- 保留 V8.1 的 3D 地球、航班录入、相册、学飞日志、勋章墙、Inner Weather。
+- PLAUD 与 Future Mail 改为“隔离式附加模块”，不会再改 IndexedDB 版本，也不会阻断核心功能。
+- Future Mail 使用独立 localStorage：到期后下一次进入 HH022 自动弹出，关闭后可在档案里重读。
+- PLAUD 导入仍写入原有 journal 数据库，因此可以继续按日期翻阅。
+
+更新 GitHub 只需覆盖 index.html / style.css / app.js。
