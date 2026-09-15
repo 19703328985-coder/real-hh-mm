@@ -2817,3 +2817,368 @@ initPrivateVault();
     console.error('HH022 Future Mail add-on isolated failure:', error);
   }
 })();
+
+/* =========================================================
+   V10 · HANGAR 022 · PRIVATE MODEL FLEET
+   Fully isolated add-on. Uses its own IndexedDB database so a
+   hangar failure cannot interrupt the stable atlas/journal core.
+   ========================================================= */
+(() => {
+  try {
+    const root = document.querySelector('#hangar');
+    if (!root || !('indexedDB' in window)) return;
+
+    const HANGAR_DB = 'hh022-hangar-v1';
+    const HANGAR_VERSION = 1;
+    const HANGAR_STORE = 'models';
+    const palette = ['#cdb78f','#91bbd2','#a7d4b3','#d7a8a1','#a9a8d6','#d1c3a8','#7fb0a8','#b990c2'];
+
+    const q = (sel, scope = document) => scope.querySelector(sel);
+    const qa = (sel, scope = document) => [...scope.querySelectorAll(sel)];
+    const els = {
+      total:q('#hangar-stat-total'), types:q('#hangar-stat-types'), airlines:q('#hangar-stat-airlines'), most:q('#hangar-stat-most'), scale:q('#hangar-stat-scale'), latest:q('#hangar-stat-latest'),
+      compositionTotal:q('#hangar-composition-total'), donut:q('#hangar-donut'), donutTotal:q('#hangar-donut-total'), legend:q('#hangar-composition-legend'), latestCard:q('#hangar-latest-card'),
+      tabs:qa('[data-hangar-view]'), view:q('#hangar-view'), empty:q('#hangar-empty'), viewKicker:q('#hangar-view-kicker'), viewTitle:q('#hangar-view-title'), resultCount:q('#hangar-result-count'),
+      search:q('#hangar-search'), airlineFilter:q('#hangar-filter-airline'), scaleFilter:q('#hangar-filter-scale'), brandFilter:q('#hangar-filter-brand'), favoriteFilter:q('#hangar-filter-favorite'),
+      add:q('#hangar-add'), exportBtn:q('#hangar-export'), importBtn:q('#hangar-import'), importFile:q('#hangar-import-file'),
+      formShell:q('#hangar-form-shell'), form:q('#hangar-form'), formTitle:q('#hangar-form-title'), formClose:q('#hangar-form-close'), formError:q('#hangar-form-error'),
+      date:q('#hangar-date'), type:q('#hangar-type'), manufacturer:q('#hangar-manufacturer'), airline:q('#hangar-airline'), registration:q('#hangar-registration'), brand:q('#hangar-brand'), modelScale:q('#hangar-scale'), place:q('#hangar-place'), price:q('#hangar-price'), favorite:q('#hangar-favorite'), intro:q('#hangar-intro'), story:q('#hangar-story'), photos:q('#hangar-photos'), save:q('#hangar-save'),
+      detailModal:q('#hangar-detail-modal'), detailBackdrop:q('#hangar-detail-backdrop'), detailClose:q('#hangar-detail-close'), detailContent:q('#hangar-detail-content'),
+      delivery:q('#hangar-delivery'), deliveryPhoto:q('#hangar-delivery-photo'), deliveryNumber:q('#hangar-delivery-number'), deliveryTitle:q('#hangar-delivery-title'), deliverySubtitle:q('#hangar-delivery-subtitle'), deliveryClose:q('#hangar-delivery-close'),
+      certModal:q('#hangar-certificate-modal'), certBackdrop:q('#hangar-certificate-backdrop'), certClose:q('#hangar-certificate-close'), certNo:q('#hangar-certificate-no'), certTitle:q('#hangar-certificate-title'), certMeta:q('#hangar-certificate-meta'), certDate:q('#hangar-certificate-date'), certDownload:q('#hangar-certificate-download')
+    };
+
+    let dbPromise = null;
+    let records = [];
+    let currentView = 'hangar';
+    let editingId = null;
+    let detailId = null;
+    let detailPhotoIndex = 0;
+    let viewUrls = [];
+    let detailUrls = [];
+    let deliveryUrl = '';
+    let certRecord = null;
+
+    const safeHtml = (value='') => typeof escapeHtml === 'function' ? escapeHtml(value) : String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    const isoToday = () => typeof localISODate === 'function' ? localISODate() : new Date().toISOString().slice(0,10);
+    const humanDate = (date) => typeof prettyDate === 'function' ? prettyDate(date) : (date || '—');
+    const idFor = (prefix) => typeof makeId === 'function' ? makeId(prefix) : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    function openHangarDb(){
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve,reject) => {
+        const req = indexedDB.open(HANGAR_DB,HANGAR_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(HANGAR_STORE)) {
+            const store = db.createObjectStore(HANGAR_STORE,{keyPath:'id'});
+            store.createIndex('purchaseDate','purchaseDate',{unique:false});
+            store.createIndex('collectionNo','collectionNo',{unique:false});
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      return dbPromise;
+    }
+    async function hangarAll(){
+      const db = await openHangarDb();
+      return new Promise((resolve,reject) => {
+        const tx = db.transaction(HANGAR_STORE,'readonly');
+        const req = tx.objectStore(HANGAR_STORE).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    async function hangarPut(value){
+      const db = await openHangarDb();
+      return new Promise((resolve,reject) => {
+        const tx = db.transaction(HANGAR_STORE,'readwrite');
+        tx.objectStore(HANGAR_STORE).put(value);
+        tx.oncomplete = () => resolve(value);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+    async function hangarDelete(id){
+      const db = await openHangarDb();
+      return new Promise((resolve,reject) => {
+        const tx = db.transaction(HANGAR_STORE,'readwrite');
+        tx.objectStore(HANGAR_STORE).delete(id);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function inferManufacturer(type=''){
+      const t = type.toUpperCase().replace(/\s+/g,'');
+      if (/^(B?7(2|3|4|5|6|7|8)|B737|B747|B757|B767|B777|B787)/.test(t)) return 'Boeing';
+      if (/^A(2|3)/.test(t)) return 'Airbus';
+      if (/^(C919|C909|ARJ21)/.test(t)) return 'COMAC';
+      if (/^(E1|E2|E17|E19|E195|ERJ)/.test(t)) return 'Embraer';
+      if (/^CRJ/.test(t)) return 'Bombardier';
+      if (/^(C1|C17|C18|C20)/.test(t)) return 'Cessna';
+      if (/^DA/.test(t)) return 'Diamond';
+      if (/^SR/.test(t)) return 'Cirrus';
+      if (/^ATR/.test(t)) return 'ATR';
+      if (/^(MD|DC)/.test(t)) return 'McDonnell Douglas';
+      if (/^TU/.test(t)) return 'Tupolev';
+      if (/^IL/.test(t)) return 'Ilyushin';
+      if (/^AN/.test(t)) return 'Antonov';
+      return 'Other';
+    }
+    function nextCollectionNo(){
+      let max = 0;
+      records.forEach(r => {
+        const m = String(r.collectionNo || '').match(/HM-(\d+)/i);
+        if (m) max = Math.max(max, Number(m[1]));
+      });
+      return `HM-${String(max + 1).padStart(3,'0')}`;
+    }
+    function normalizeRecord(record){
+      return {
+        ...record,
+        manufacturer: record.manufacturer || inferManufacturer(record.aircraftType),
+        photos: Array.isArray(record.photos) ? record.photos : [],
+        favorite: !!record.favorite
+      };
+    }
+    function uniqueValues(key){
+      return [...new Set(records.map(r => String(r[key] || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+    }
+    function modeValue(key){
+      const counts = new Map();
+      records.forEach(r => { const v=String(r[key]||'').trim(); if(v) counts.set(v,(counts.get(v)||0)+1); });
+      return [...counts.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0]))[0]?.[0] || '—';
+    }
+    function primaryPhoto(record){ return record?.photos?.[0] || null; }
+    function makeUrl(blob, bucket=viewUrls){
+      if (!(blob instanceof Blob)) return '';
+      const url=URL.createObjectURL(blob); bucket.push(url); return url;
+    }
+    function clearUrls(bucket){ while(bucket.length){ try{URL.revokeObjectURL(bucket.pop());}catch{} } }
+    function sortByDate(list=records){ return [...list].sort((a,b)=>(b.purchaseDate||'').localeCompare(a.purchaseDate||'') || String(a.collectionNo||'').localeCompare(String(b.collectionNo||''))); }
+
+    function fillSelect(select, values){
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = '<option value="">ALL</option>' + values.map(v=>`<option value="${safeHtml(v)}">${safeHtml(v)}</option>`).join('');
+      if (values.includes(current)) select.value = current;
+    }
+    function renderFilters(){
+      fillSelect(els.airlineFilter, uniqueValues('airline'));
+      fillSelect(els.scaleFilter, uniqueValues('scale'));
+      fillSelect(els.brandFilter, uniqueValues('brand'));
+    }
+    function currentFiltered(){
+      const needle=(els.search?.value||'').trim().toLowerCase();
+      const airline=els.airlineFilter?.value||'';
+      const scale=els.scaleFilter?.value||'';
+      const brand=els.brandFilter?.value||'';
+      const fav=els.favoriteFilter?.getAttribute('aria-pressed')==='true';
+      return sortByDate(records.filter(r => {
+        if (airline && r.airline !== airline) return false;
+        if (scale && r.scale !== scale) return false;
+        if (brand && r.brand !== brand) return false;
+        if (fav && !r.favorite) return false;
+        if (!needle) return true;
+        return [r.collectionNo,r.aircraftType,r.manufacturer,r.airline,r.registration,r.brand,r.scale,r.purchasePlace,r.intro,r.story].join(' ').toLowerCase().includes(needle);
+      }));
+    }
+
+    function renderStats(){
+      const total=records.length;
+      const types=new Set(records.map(r=>String(r.aircraftType||'').trim()).filter(Boolean)).size;
+      const airlines=new Set(records.map(r=>String(r.airline||'').trim()).filter(Boolean)).size;
+      els.total.textContent=total; els.types.textContent=types; els.airlines.textContent=airlines;
+      els.most.textContent=modeValue('aircraftType'); els.scale.textContent=modeValue('scale');
+      const latest=sortByDate(records)[0]; els.latest.textContent=latest?.purchaseDate ? humanDate(latest.purchaseDate) : '—';
+      els.compositionTotal.textContent=`${total} AIRCRAFT`; els.donutTotal.textContent=total;
+
+      const groups=new Map();
+      records.forEach(r=>{ const key=r.manufacturer||inferManufacturer(r.aircraftType); groups.set(key,(groups.get(key)||0)+1); });
+      const entries=[...groups.entries()].sort((a,b)=>b[1]-a[1]);
+      if (!entries.length){
+        els.donut.style.background='conic-gradient(rgba(255,255,255,.08) 0 100%)';
+        els.legend.innerHTML='<span style="font-size:10px;color:#72838e">等待收藏数据。</span>';
+      } else {
+        let cursor=0; const chunks=[];
+        entries.forEach(([name,count],i)=>{ const end=cursor+count/total*100; chunks.push(`${palette[i%palette.length]} ${cursor}% ${end}%`); cursor=end; });
+        els.donut.style.background=`conic-gradient(${chunks.join(',')})`;
+        els.legend.innerHTML=entries.slice(0,7).map(([name,count],i)=>`<div class="hangar-composition-legend-item" style="--legend-color:${palette[i%palette.length]}"><i></i><span>${safeHtml(name)}</span><strong>${count}</strong></div>`).join('') + (entries.length>7?`<div class="hangar-composition-legend-item"><i style="background:#596772"></i><span>OTHER</span><strong>${entries.slice(7).reduce((s,e)=>s+e[1],0)}</strong></div>`:'');
+      }
+      if(latest){
+        els.latestCard.innerHTML=`<span>LATEST DELIVERY · ${safeHtml(latest.collectionNo)}</span><strong>${safeHtml(latest.aircraftType || 'Aircraft model')}</strong><p>${safeHtml(latest.airline || latest.manufacturer || 'HANGAR 022')} ${latest.scale?`· <b>${safeHtml(latest.scale)}</b>`:''}<br>${latest.purchaseDate?safeHtml(humanDate(latest.purchaseDate)):'DATE UNRECORDED'}</p>`;
+        els.latestCard.style.cursor='pointer'; els.latestCard.onclick=()=>openDetail(latest.id);
+      } else {
+        els.latestCard.innerHTML='<span>LATEST DELIVERY</span><strong>机库正在等待第一架新成员。</strong><p>录入航模以后，这里会显示最近一次“交付”。</p>';
+        els.latestCard.onclick=null; els.latestCard.style.cursor='default';
+      }
+    }
+
+    function modelCard(record){
+      const article=document.createElement('article'); article.className='model-card'; article.dataset.id=record.id;
+      const photo=primaryPhoto(record); const url=photo?makeUrl(photo):'';
+      article.innerHTML=`
+        <div class="model-card-photo ${url?'':'no-photo'}">${url?`<img src="${url}" alt="${safeHtml(record.aircraftType)} 航模">`:''}<span class="model-card-badge">${safeHtml(record.collectionNo)}</span><button class="model-card-favorite ${record.favorite?'on':''}" type="button" aria-label="特别收藏">★</button></div>
+        <div class="model-card-copy"><span>${safeHtml(record.manufacturer || 'PRIVATE FLEET')} · ${safeHtml(record.scale || 'SCALE —')}</span><h4>${safeHtml(record.aircraftType || 'Unnamed aircraft')}</h4><p>${safeHtml(record.airline || record.intro || 'HANGAR 022 PRIVATE MODEL')}</p><div class="model-card-meta"><span>${safeHtml(record.purchaseDate?humanDate(record.purchaseDate):'DATE —')}</span><strong>${safeHtml(record.brand || record.registration || 'MODEL ARCHIVE')}</strong></div></div>`;
+      article.addEventListener('click',()=>openDetail(record.id));
+      q('.model-card-favorite',article).addEventListener('click',async e=>{ e.stopPropagation(); await toggleFavorite(record.id); });
+      return article;
+    }
+    function renderHangar(list){
+      const grid=document.createElement('div'); grid.className='hangar-grid'; list.forEach(r=>grid.appendChild(modelCard(r))); els.view.appendChild(grid);
+    }
+    function renderTimeline(list){
+      const wrap=document.createElement('div'); wrap.className='hangar-timeline'; let lastYear='';
+      list.forEach(record=>{
+        const parts=String(record.purchaseDate||'').split('-'); const year=parts[0]||'UNDATED';
+        if(year!==lastYear){ const y=document.createElement('div'); y.className='hangar-year'; y.textContent=year; wrap.appendChild(y); lastYear=year; }
+        const row=document.createElement('div'); row.className='hangar-timeline-item';
+        const photo=primaryPhoto(record); const url=photo?makeUrl(photo):'';
+        row.innerHTML=`<div class="hangar-timeline-date"><strong>${safeHtml(parts[2]||'—')}</strong><span>${safeHtml(parts[1]?`${parts[1]} MONTH`:'DATE —')}</span></div><article class="hangar-timeline-card" tabindex="0"><div class="hangar-timeline-photo">${url?`<img src="${url}" alt="">`:''}</div><div class="hangar-timeline-card-copy"><span>${safeHtml(record.collectionNo)} · ${safeHtml(record.scale||'SCALE —')}</span><strong>${safeHtml(record.aircraftType)}</strong><p>${safeHtml(record.airline || record.manufacturer || '')}${record.story?` · ${safeHtml(record.story.slice(0,70))}`:''}</p></div></article>`;
+        q('.hangar-timeline-card',row).addEventListener('click',()=>openDetail(record.id)); wrap.appendChild(row);
+      }); els.view.appendChild(wrap);
+    }
+    function renderLibrary(list){
+      const byMaker=new Map();
+      list.forEach(r=>{ const maker=r.manufacturer||inferManufacturer(r.aircraftType); if(!byMaker.has(maker)) byMaker.set(maker,[]); byMaker.get(maker).push(r); });
+      const wrap=document.createElement('div'); wrap.className='hangar-library';
+      [...byMaker.entries()].sort((a,b)=>b[1].length-a[1].length || a[0].localeCompare(b[0])).forEach(([maker,items])=>{
+        const section=document.createElement('section'); section.className='hangar-library-group';
+        const typeMap=new Map(); items.forEach(r=>{ const t=r.aircraftType||'UNKNOWN'; if(!typeMap.has(t)) typeMap.set(t,[]); typeMap.get(t).push(r); });
+        section.innerHTML=`<div class="hangar-library-group-head"><div><span>MANUFACTURER</span><strong>${safeHtml(maker)}</strong></div><b>${items.length} AIRCRAFT · ${typeMap.size} TYPES</b></div><div class="hangar-library-types"></div>`;
+        const tiles=q('.hangar-library-types',section);
+        [...typeMap.entries()].sort((a,b)=>b[1].length-a[1].length || a[0].localeCompare(b[0])).forEach(([type,typeItems])=>{
+          const button=document.createElement('button'); button.type='button'; button.className='hangar-type-tile'; const scales=[...new Set(typeItems.map(x=>x.scale).filter(Boolean))];
+          button.innerHTML=`<span>${safeHtml(typeItems[0]?.airline || maker)}</span><strong>${safeHtml(type)}</strong><small>${typeItems.length} MODEL${typeItems.length===1?'':'S'}${scales.length?` · ${safeHtml(scales.join(' / '))}`:''}</small>`;
+          button.addEventListener('click',()=>{ els.search.value=type; currentView='hangar'; updateTabs(); renderView(); root.scrollIntoView({behavior:'smooth',block:'start'}); }); tiles.appendChild(button);
+        }); wrap.appendChild(section);
+      }); els.view.appendChild(wrap);
+    }
+    function updateTabs(){ els.tabs.forEach(b=>b.classList.toggle('active',b.dataset.hangarView===currentView)); }
+    function renderView(){
+      clearUrls(viewUrls); const list=currentFiltered(); els.view.innerHTML=''; els.empty.hidden=list.length>0; els.resultCount.textContent=`${String(list.length).padStart(2,'0')} AIRCRAFT`;
+      const labels={hangar:['VIRTUAL HANGAR','私人机库收藏墙'],timeline:['FLEET TIMELINE','航模入库时间轴'],library:['AIRCRAFT LIBRARY','机型收藏图鉴']};
+      els.viewKicker.textContent=labels[currentView][0]; els.viewTitle.textContent=labels[currentView][1];
+      if(!list.length) return;
+      if(currentView==='timeline') renderTimeline(list); else if(currentView==='library') renderLibrary(list); else renderHangar(list);
+    }
+    function renderAll(){ renderFilters(); renderStats(); renderView(); }
+
+    async function refresh(){ records=(await hangarAll()).map(normalizeRecord); renderAll(); }
+
+    function resetForm(){
+      editingId=null; els.form.reset(); els.date.value=isoToday(); els.formTitle.textContent='登记一架新航模'; els.formError.textContent=''; els.save.innerHTML='COMPLETE DELIVERY <span>↗</span>';
+    }
+    function openForm(record=null){
+      if(record){
+        editingId=record.id; els.formTitle.textContent=`编辑 ${record.collectionNo}`; els.date.value=record.purchaseDate||''; els.type.value=record.aircraftType||''; els.manufacturer.value=record.manufacturer||''; els.airline.value=record.airline||''; els.registration.value=record.registration||''; els.brand.value=record.brand||''; els.modelScale.value=record.scale||''; els.place.value=record.purchasePlace||''; els.price.value=record.price||''; els.favorite.checked=!!record.favorite; els.intro.value=record.intro||''; els.story.value=record.story||''; els.save.innerHTML='SAVE CHANGES <span>↗</span>';
+      } else resetForm();
+      els.formShell.hidden=false; els.formShell.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+    function closeForm(){ els.formShell.hidden=true; resetForm(); }
+
+    async function processPhotos(files){
+      const items=[...files].slice(0,6); const blobs=[];
+      for(const file of items){
+        try{ blobs.push(typeof optimizeImage==='function' ? await optimizeImage(file,1280,.82) : file); }catch{}
+      }
+      return blobs;
+    }
+
+    async function onSubmit(event){
+      event.preventDefault(); els.formError.textContent='';
+      if(!els.date.value || !els.type.value.trim()){ els.formError.textContent='购买日期和飞机型号需要填写。'; return; }
+      els.save.disabled=true; els.save.textContent='SAVING TO HANGAR…';
+      try{
+        const existing=editingId?records.find(r=>r.id===editingId):null;
+        const newPhotos=await processPhotos(els.photos.files || []);
+        const record=normalizeRecord({
+          id:existing?.id || idFor('model'), collectionNo:existing?.collectionNo || nextCollectionNo(), purchaseDate:els.date.value,
+          aircraftType:els.type.value.trim(), manufacturer:els.manufacturer.value.trim() || inferManufacturer(els.type.value), airline:els.airline.value.trim(), registration:els.registration.value.trim(), brand:els.brand.value.trim(), scale:els.modelScale.value.trim(), purchasePlace:els.place.value.trim(), price:els.price.value.trim(), favorite:els.favorite.checked, intro:els.intro.value.trim(), story:els.story.value.trim(), photos:[...(existing?.photos||[]),...newPhotos], createdAt:existing?.createdAt || new Date().toISOString(), updatedAt:new Date().toISOString()
+        });
+        await hangarPut(record); const isNew=!existing; closeForm(); await refresh(); if(isNew) showDelivery(record); else openDetail(record.id);
+      } catch(error){ console.error('HANGAR save failed',error); els.formError.textContent='保存失败，请稍后重试。'; }
+      finally{ els.save.disabled=false; els.save.innerHTML=editingId?'SAVE CHANGES <span>↗</span>':'COMPLETE DELIVERY <span>↗</span>'; }
+    }
+
+    async function toggleFavorite(id){
+      const record=records.find(r=>r.id===id); if(!record)return; record.favorite=!record.favorite; record.updatedAt=new Date().toISOString(); await hangarPut(record); await refresh(); if(detailId===id) openDetail(id);
+    }
+
+    function closeDetail(){ clearUrls(detailUrls); els.detailModal.hidden=true; detailId=null; document.body.classList.remove('locked'); }
+    function detailPhotoMarkup(record){
+      clearUrls(detailUrls); const photos=record.photos||[]; const urls=photos.map(p=>makeUrl(p,detailUrls)); const active=Math.min(detailPhotoIndex,Math.max(0,urls.length-1));
+      const main=urls[active]||'';
+      return `<div class="hangar-detail-gallery"><div class="hangar-detail-main-photo ${main?'':'no-photo'}">${main?`<img src="${main}" alt="${safeHtml(record.aircraftType)} 航模">`:''}</div>${urls.length>1?`<div class="hangar-detail-thumbs">${urls.map((u,i)=>`<button class="hangar-detail-thumb ${i===active?'active':''}" type="button" data-photo-index="${i}"><img src="${u}" alt="照片 ${i+1}"></button>`).join('')}</div>`:'<div></div>'}</div>`;
+    }
+    function openDetail(id){
+      const record=records.find(r=>r.id===id); if(!record)return; detailId=id; detailPhotoIndex=0; renderDetail(record); els.detailModal.hidden=false; document.body.classList.add('locked');
+    }
+    function renderDetail(record){
+      const photoHtml=detailPhotoMarkup(record);
+      els.detailContent.innerHTML=`<div class="hangar-detail-layout">${photoHtml}<div class="hangar-detail-copy"><div class="microline"><span>${safeHtml(record.collectionNo)} · HANGAR 022</span><span>${record.favorite?'★ SPECIAL COLLECTION':'PRIVATE MODEL FLEET'}</span></div><h3 id="hangar-detail-title">${safeHtml(record.aircraftType)}</h3><div class="hangar-detail-airline">${safeHtml(record.airline || record.manufacturer || 'PRIVATE COLLECTION')}</div><div class="hangar-detail-specs"><div><span>MANUFACTURER</span><strong>${safeHtml(record.manufacturer||'—')}</strong></div><div><span>SCALE</span><strong>${safeHtml(record.scale||'—')}</strong></div><div><span>MODEL BRAND</span><strong>${safeHtml(record.brand||'—')}</strong></div><div><span>REGISTRATION</span><strong>${safeHtml(record.registration||'—')}</strong></div><div><span>PURCHASE DATE</span><strong>${safeHtml(record.purchaseDate?humanDate(record.purchaseDate):'—')}</strong></div><div><span>PURCHASE PLACE</span><strong>${safeHtml(record.purchasePlace||'—')}</strong></div></div>${record.intro?`<div class="hangar-detail-story"><span>AIRCRAFT NOTE</span><p>${safeHtml(record.intro)}</p></div>`:''}${record.story?`<div class="hangar-detail-story"><span>COLLECTION STORY</span><p>${safeHtml(record.story)}</p></div>`:''}<div class="hangar-detail-actions"><button class="text-btn ${record.favorite?'favorite-on':''}" data-action="favorite" type="button">★ ${record.favorite?'SPECIAL COLLECTION':'MARK FAVORITE'}</button><button class="text-btn" data-action="certificate" type="button">VIEW CERTIFICATE</button><button class="text-btn" data-action="edit" type="button">EDIT MODEL</button><button class="text-btn danger" data-action="delete" type="button">REMOVE FROM HANGAR</button></div></div></div>`;
+      qa('[data-photo-index]',els.detailContent).forEach(btn=>btn.addEventListener('click',()=>{ detailPhotoIndex=Number(btn.dataset.photoIndex)||0; renderDetail(record); }));
+      q('[data-action="favorite"]',els.detailContent)?.addEventListener('click',()=>toggleFavorite(record.id));
+      q('[data-action="certificate"]',els.detailContent)?.addEventListener('click',()=>openCertificate(record));
+      q('[data-action="edit"]',els.detailContent)?.addEventListener('click',()=>{ closeDetail(); openForm(record); });
+      q('[data-action="delete"]',els.detailContent)?.addEventListener('click',async()=>{ if(!confirm(`把 ${record.collectionNo} · ${record.aircraftType} 从 HANGAR 022 删除？`))return; await hangarDelete(record.id); closeDetail(); await refresh(); });
+    }
+
+    function showDelivery(record){
+      if(deliveryUrl){URL.revokeObjectURL(deliveryUrl);deliveryUrl='';}
+      const photo=primaryPhoto(record); if(photo){deliveryUrl=URL.createObjectURL(photo);els.deliveryPhoto.style.backgroundImage=`url("${deliveryUrl}")`;els.deliveryPhoto.classList.remove('no-photo');}else{els.deliveryPhoto.style.backgroundImage='';els.deliveryPhoto.classList.add('no-photo');}
+      els.deliveryNumber.textContent=record.collectionNo; els.deliveryTitle.textContent=record.aircraftType; els.deliverySubtitle.textContent=`${record.airline || record.manufacturer || 'A new aircraft'} has joined HANGAR 022.`; els.delivery.hidden=false; document.body.classList.add('locked');
+    }
+    function closeDelivery(){ els.delivery.hidden=true; document.body.classList.remove('locked'); if(deliveryUrl){URL.revokeObjectURL(deliveryUrl);deliveryUrl='';} }
+
+    function openCertificate(record){
+      certRecord=record; els.certNo.textContent=record.collectionNo; els.certTitle.textContent=record.aircraftType; els.certMeta.textContent=[record.scale,record.airline||record.manufacturer].filter(Boolean).join(' · ') || 'PRIVATE MODEL FLEET'; els.certDate.textContent=record.purchaseDate?humanDate(record.purchaseDate):'DATE UNRECORDED'; els.certModal.hidden=false; document.body.classList.add('locked');
+    }
+    function closeCertificate(){ els.certModal.hidden=true; certRecord=null; document.body.classList.remove('locked'); }
+    async function downloadCertificate(){
+      const record=certRecord; if(!record)return;
+      const canvas=document.createElement('canvas'); canvas.width=1600; canvas.height=1000; const ctx=canvas.getContext('2d');
+      ctx.fillStyle='#07131e';ctx.fillRect(0,0,1600,1000); const g=ctx.createRadialGradient(1280,140,10,1280,140,650);g.addColorStop(0,'rgba(205,183,143,.14)');g.addColorStop(1,'rgba(205,183,143,0)');ctx.fillStyle=g;ctx.fillRect(0,0,1600,1000);
+      ctx.strokeStyle='rgba(205,183,143,.7)';ctx.lineWidth=2;ctx.strokeRect(60,60,1480,880);ctx.strokeStyle='rgba(205,183,143,.2)';ctx.strokeRect(85,85,1430,830);
+      ctx.fillStyle='#cdb78f';ctx.font='24px sans-serif';ctx.letterSpacing='6px';ctx.fillText('HANGAR 022 · CERTIFICATE OF COLLECTION',130,170);
+      ctx.font='56px Georgia';ctx.fillText(record.collectionNo,130,300);
+      ctx.fillStyle='#f1efe9';ctx.font='92px Georgia';ctx.fillText(record.aircraftType||'AIRCRAFT MODEL',130,430);
+      ctx.fillStyle='#9eabb4';ctx.font='28px sans-serif';ctx.fillText([record.scale,record.airline||record.manufacturer].filter(Boolean).join(' · ')||'PRIVATE MODEL FLEET',130,500);
+      ctx.strokeStyle='#cdb78f';ctx.beginPath();ctx.moveTo(130,590);ctx.lineTo(870,590);ctx.stroke();
+      ctx.fillStyle='#7f909b';ctx.font='20px sans-serif';ctx.fillText('ADDED TO COLLECTION',130,655);ctx.fillStyle='#f1efe9';ctx.font='42px Georgia';ctx.fillText(record.purchaseDate?humanDate(record.purchaseDate):'DATE UNRECORDED',130,715);
+      ctx.fillStyle='#cdb78f';ctx.font='100px Georgia';ctx.globalAlpha=.15;ctx.fillText('HH',1310,190);ctx.globalAlpha=1;
+      const blob=primaryPhoto(record); if(blob instanceof Blob){
+        const url=URL.createObjectURL(blob); try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;}); const box={x:980,y:310,w:440,h:330}; const scale=Math.min(box.w/img.width,box.h/img.height); const w=img.width*scale,h=img.height*scale;ctx.drawImage(img,box.x+(box.w-w)/2,box.y+(box.h-h)/2,w,h);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.strokeRect(box.x,box.y,box.w,box.h);}catch{}finally{URL.revokeObjectURL(url);}
+      }
+      ctx.fillStyle='#7f909b';ctx.font='18px sans-serif';ctx.fillText('HH022 PRIVATE AIRCRAFT ARCHIVE',130,850);
+      const link=document.createElement('a');link.download=`${record.collectionNo}-${String(record.aircraftType||'model').replace(/[^a-z0-9_-]+/gi,'-')}-certificate.png`;link.href=canvas.toDataURL('image/png');link.click();
+    }
+
+    function blobToDataURL(blob){ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);}); }
+    async function exportHangar(){
+      const payload=[]; for(const r of records){const photos=[];for(const p of (r.photos||[])){try{photos.push(await blobToDataURL(p));}catch{}}payload.push({...r,photos});}
+      const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),hangar:payload},null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download=`hangar-022-${isoToday()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),800);
+    }
+    async function importHangar(file){
+      const text=await file.text();const data=JSON.parse(text);const list=Array.isArray(data)?data:data.hangar;if(!Array.isArray(list))throw new Error('Invalid hangar archive');
+      let imported=0;for(const raw of list){const photos=[];for(const item of (raw.photos||[])){if(typeof item==='string'&&item.startsWith('data:')){try{photos.push(await (await fetch(item)).blob());}catch{}} else if(item instanceof Blob)photos.push(item);}const record=normalizeRecord({...raw,id:raw.id||idFor('model'),collectionNo:raw.collectionNo||nextCollectionNo(),photos});await hangarPut(record);imported++;}
+      await refresh();alert(`HANGAR 022 已导入 ${imported} 架航模。`);
+    }
+
+    els.tabs.forEach(btn=>btn.addEventListener('click',()=>{currentView=btn.dataset.hangarView;updateTabs();renderView();}));
+    [els.search,els.airlineFilter,els.scaleFilter,els.brandFilter].forEach(el=>el?.addEventListener(el===els.search?'input':'change',renderView));
+    els.favoriteFilter?.addEventListener('click',()=>{const on=els.favoriteFilter.getAttribute('aria-pressed')==='true';els.favoriteFilter.setAttribute('aria-pressed',String(!on));renderView();});
+    els.add?.addEventListener('click',()=>openForm()); els.formClose?.addEventListener('click',closeForm); els.form?.addEventListener('submit',onSubmit);
+    els.exportBtn?.addEventListener('click',exportHangar); els.importBtn?.addEventListener('click',()=>els.importFile?.click()); els.importFile?.addEventListener('change',async()=>{const file=els.importFile.files?.[0];if(!file)return;try{await importHangar(file);}catch(e){console.error(e);alert('导入失败：请确认这是 HANGAR 022 导出的 JSON 文件。');}finally{els.importFile.value='';}});
+    [els.detailBackdrop,els.detailClose].forEach(el=>el?.addEventListener('click',closeDetail)); els.deliveryClose?.addEventListener('click',closeDelivery); [els.certBackdrop,els.certClose].forEach(el=>el?.addEventListener('click',closeCertificate)); els.certDownload?.addEventListener('click',downloadCertificate);
+    document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!els.certModal.hidden)closeCertificate();else if(!els.detailModal.hidden)closeDetail();else if(!els.delivery.hidden)closeDelivery();});
+
+    resetForm(); updateTabs();
+    refresh().catch(error=>{
+      console.error('HH022 HANGAR 022 isolated failure:',error);
+      els.empty.hidden=false; els.empty.querySelector('strong').textContent='HANGAR 022 暂时无法读取本机收藏库。';
+      els.empty.querySelector('p').textContent='核心生日网站仍可正常使用；刷新页面后可再次尝试。';
+    });
+  } catch(error){ console.error('HH022 HANGAR 022 boot isolated failure:',error); }
+})();

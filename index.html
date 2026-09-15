@@ -7,8 +7,8 @@
   <title>HH022 · 飞往 22 岁</title>
   <meta name="description" content="给昊昊的 22 岁私人航班：从 21 岁起飞，向 22 岁抵达。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306101a'/%3E%3Cpath d='M13 43L45 11M24 13h23v23' fill='none' stroke='%23cdb78f' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=9.3-stable">
-  <meta name="hh022-version" content="9.3-stable">
+  <link rel="stylesheet" href="style.css?v=10-hangar">
+  <meta name="hh022-version" content="10-hangar">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -53,6 +53,7 @@
     <nav aria-label="页面导航">
       <a href="#log">LOG</a>
       <a href="#atlas">ATLAS</a>
+      <a href="#hangar">HANGAR</a>
       <a href="#gallery">MEMORIES</a>
       <a href="#journal">JOURNAL</a>
       <a href="#plaud">BLACK BOX</a>
@@ -258,10 +259,123 @@
       </div>
     </section>
 
+
+
+    <section class="section hangar-section" id="hangar">
+      <div class="section-head split-head reveal">
+        <div>
+          <p class="micro gold">05 · HANGAR 022</p>
+          <h3>把一百架航模，<br>变成一座真正会生长的私人机库。</h3>
+        </div>
+        <p>不是普通相册，也不是一张清单。这里会记录每一架航模何时“交付”、是什么型号与涂装、为什么值得收藏，并自动长成虚拟机库、入库时间轴、机型图鉴与收藏证书。</p>
+      </div>
+
+      <div class="hangar-entry reveal">
+        <div class="hangar-entry-copy">
+          <span>PRIVATE MODEL FLEET · HANGAR 022</span>
+          <strong>WELCOME TO HANGAR 022</strong>
+          <p>每一架被收藏的飞机，都有它来到这里的那一天。</p>
+        </div>
+        <div class="hangar-entry-number" aria-hidden="true">022</div>
+        <div class="hangar-entry-status"><i></i><span>HANGAR SYSTEM</span><strong>READY FOR DELIVERY</strong></div>
+      </div>
+
+      <div class="hangar-stats reveal" id="hangar-stats">
+        <div><span>TOTAL FLEET</span><strong id="hangar-stat-total">0</strong></div>
+        <div><span>AIRCRAFT TYPES</span><strong id="hangar-stat-types">0</strong></div>
+        <div><span>AIRLINES / LIVERIES</span><strong id="hangar-stat-airlines">0</strong></div>
+        <div><span>MOST COLLECTED</span><strong id="hangar-stat-most">—</strong></div>
+        <div><span>FAVORITE SCALE</span><strong id="hangar-stat-scale">—</strong></div>
+        <div><span>LATEST DELIVERY</span><strong id="hangar-stat-latest">—</strong></div>
+      </div>
+
+      <div class="hangar-command reveal">
+        <div class="hangar-view-tabs" role="tablist" aria-label="航模收藏视图">
+          <button class="active" type="button" data-hangar-view="hangar">VIRTUAL HANGAR</button>
+          <button type="button" data-hangar-view="timeline">FLEET TIMELINE</button>
+          <button type="button" data-hangar-view="library">AIRCRAFT LIBRARY</button>
+        </div>
+        <div class="hangar-command-actions">
+          <button class="text-btn" id="hangar-export" type="button">EXPORT HANGAR</button>
+          <button class="text-btn" id="hangar-import" type="button">IMPORT HANGAR</button>
+          <input id="hangar-import-file" type="file" accept="application/json,.json" hidden>
+          <button class="cta gold-btn" id="hangar-add" type="button">＋ NEW DELIVERY <span>↗</span></button>
+        </div>
+      </div>
+
+      <div class="hangar-filterbar reveal">
+        <label class="hangar-search"><span>SEARCH FLEET</span><input id="hangar-search" type="search" placeholder="型号 / 航司 / 涂装 / 品牌 / 编号"></label>
+        <label><span>AIRLINE</span><select id="hangar-filter-airline"><option value="">ALL</option></select></label>
+        <label><span>SCALE</span><select id="hangar-filter-scale"><option value="">ALL</option></select></label>
+        <label><span>BRAND</span><select id="hangar-filter-brand"><option value="">ALL</option></select></label>
+        <button class="hangar-favorite-filter" id="hangar-filter-favorite" type="button" aria-pressed="false">★ FAVORITES</button>
+      </div>
+
+      <div class="hangar-dashboard reveal">
+        <div class="hangar-composition-card">
+          <div class="hangar-card-head"><div><span>FLEET COMPOSITION</span><strong>收藏构成</strong></div><span id="hangar-composition-total">0 AIRCRAFT</span></div>
+          <div class="hangar-composition-body">
+            <div class="hangar-donut" id="hangar-donut"><div><strong id="hangar-donut-total">0</strong><span>MODELS</span></div></div>
+            <div class="hangar-composition-legend" id="hangar-composition-legend"></div>
+          </div>
+        </div>
+        <div class="hangar-latest-card" id="hangar-latest-card">
+          <span>LATEST DELIVERY</span>
+          <strong>机库正在等待第一架新成员。</strong>
+          <p>录入航模以后，这里会显示最近一次“交付”。</p>
+        </div>
+      </div>
+
+      <div class="hangar-view-shell reveal">
+        <div class="hangar-view-head">
+          <div><span id="hangar-view-kicker">VIRTUAL HANGAR</span><strong id="hangar-view-title">私人机库收藏墙</strong></div>
+          <span id="hangar-result-count">00 AIRCRAFT</span>
+        </div>
+        <div class="hangar-empty" id="hangar-empty">
+          <div class="hangar-empty-plane" aria-hidden="true">✈</div>
+          <span>NO AIRCRAFT IN HANGAR 022</span>
+          <strong>第一架航模，会在这里完成“交付”。</strong>
+          <p>把你最喜欢的一架先录进来。它会自动获得 HM-001 收藏编号。</p>
+        </div>
+        <div class="hangar-view" id="hangar-view"></div>
+      </div>
+
+      <div class="hangar-form-shell reveal" id="hangar-form-shell" hidden>
+        <div class="memory-form-head">
+          <div><span>HANGAR 022 · DELIVERY DESK</span><strong id="hangar-form-title">登记一架新航模</strong></div>
+          <button id="hangar-form-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <form class="hangar-form" id="hangar-form">
+          <label>PURCHASE DATE<input id="hangar-date" type="date" required></label>
+          <label>AIRCRAFT TYPE<input id="hangar-type" type="text" maxlength="40" placeholder="B787-9 / A350-1000 / C919" required></label>
+          <label>MANUFACTURER<input id="hangar-manufacturer" type="text" maxlength="32" placeholder="Boeing / Airbus / COMAC"></label>
+          <label>AIRLINE / LIVERY<input id="hangar-airline" type="text" maxlength="60" placeholder="China Southern / ANA Pokémon livery"></label>
+          <label>REGISTRATION<input id="hangar-registration" type="text" maxlength="24" placeholder="B-xxxx（可选）"></label>
+          <label>MODEL BRAND<input id="hangar-brand" list="hangar-brand-list" type="text" maxlength="40" placeholder="NG Models / GeminiJets"></label>
+          <label>SCALE<input id="hangar-scale" list="hangar-scale-list" type="text" maxlength="20" placeholder="1:400"></label>
+          <label>PURCHASE PLACE<input id="hangar-place" type="text" maxlength="60" placeholder="上海 / 网购 / 机场店（可选）"></label>
+          <label>PRICE · OPTIONAL<input id="hangar-price" type="text" maxlength="24" placeholder="¥ / 不想记录可留空"></label>
+          <label class="hangar-check"><input id="hangar-favorite" type="checkbox"><span>★ 标记为特别收藏</span></label>
+          <label class="full">INTRODUCTION<textarea id="hangar-intro" maxlength="900" rows="4" placeholder="这架真实飞机 / 机型 / 涂装有什么特别之处？"></textarea></label>
+          <label class="full">COLLECTION STORY<textarea id="hangar-story" maxlength="1200" rows="5" placeholder="为什么买它？从哪里遇见它？为什么想一直留下？"></textarea></label>
+          <label class="memory-file-drop full">
+            <input id="hangar-photos" type="file" accept="image/*" multiple>
+            <span>ADD MODEL PHOTOS</span>
+            <small>支持多张图片。建议每架 1–6 张；网站会自动压缩并保存在当前浏览器。</small>
+          </label>
+          <datalist id="hangar-brand-list"><option>NG Models</option><option>GeminiJets</option><option>JC Wings</option><option>Phoenix</option><option>Aviation400</option><option>Herpa</option><option>Hogan</option><option>Inflight200</option></datalist>
+          <datalist id="hangar-scale-list"><option>1:200</option><option>1:400</option><option>1:500</option><option>1:144</option><option>1:100</option><option>1:72</option></datalist>
+          <p class="memory-form-error" id="hangar-form-error" role="alert"></p>
+          <button class="cta gold-btn full" id="hangar-save" type="submit">COMPLETE DELIVERY <span>↗</span></button>
+        </form>
+        <p class="private-storage-note"><i></i> HANGAR 022 使用独立的本机收藏数据库，不会影响航班、日志、PLAUD 或时间信箱。建议定期使用 EXPORT HANGAR 备份。</p>
+      </div>
+    </section>
+
     <section class="section training-journal-section" id="journal">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">05 · PILOT TRAINING JOURNAL</p>
+          <p class="micro gold">06 · PILOT TRAINING JOURNAL</p>
           <h3>学飞不是一条直线。<br>把每一次起落都写下来。</h3>
         </div>
         <p>训练科目、机型、飞行时长、当天的心情、做得好的地方、需要修正的地方，都可以在这里留下。以后按照日期翻回去，会看到的不只是技术进步，也会看到一个飞行员慢慢长成的过程。</p>
@@ -374,7 +488,7 @@
     <section class="section plaud-section" id="plaud">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">06 · PLAUD × HH022</p>
+          <p class="micro gold">07 · PLAUD × HH022</p>
           <h3>把现实里的声音，<br>收进你的私人黑匣子。</h3>
         </div>
         <p>PLAUD 负责把训练后的声音、转写和总结带回来；HH022 把它们和日期、机型、机场、心情与成长轨迹放在一起。以后再听见的，不只是录音，而是当时那个正在学会飞行的自己。</p>
@@ -425,7 +539,7 @@
     <section class="section life-os-section" id="life-os">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">07 · FLIGHT LIFE OS</p>
+          <p class="micro gold">08 · FLIGHT LIFE OS</p>
           <h3>过去有轨迹，<br>现在有仪表，未来有航向。</h3>
         </div>
         <p>这里把航班、学飞日志、照片和训练状态真正串在一起。它不是一个“完成度评分”，而是一块会随着真实记录慢慢点亮的私人驾驶舱。</p>
@@ -477,7 +591,7 @@
     <section class="section future-mail-section" id="future-mail">
       <div class="section-head split-head reveal">
         <div>
-          <p class="micro gold">08 · FUTURE MAIL</p>
+          <p class="micro gold">09 · FUTURE MAIL</p>
           <h3>写给未来。<br>让它在约定的那一天抵达。</h3>
         </div>
         <p>写下内容、选择开启日期并封存。日期没到以前只看得到标题和抵达日；等那一天再打开 HH022，它会主动从过去弹出来找你。关闭以后，也可以随时在时间信箱里重读。</p>
@@ -519,7 +633,7 @@
       <div class="letter-sky" aria-hidden="true"></div>
       <article class="letter-card reveal">
         <div class="letter-meta">
-          <p class="micro gold">09 · A LETTER AT 30,000 FT</p>
+          <p class="micro gold">10 · A LETTER AT 30,000 FT</p>
           <span>PRIVATE / CONFIDENTIAL</span>
         </div>
         <h3>亲爱的昊昊，</h3>
@@ -539,7 +653,7 @@
     <section class="section wish-section" id="wish">
       <div class="wish-layout">
         <div class="wish-copy reveal">
-          <p class="micro gold">10 · BEFORE TAKEOFF</p>
+          <p class="micro gold">11 · BEFORE TAKEOFF</p>
           <h3>下一程，<br>心向何处。</h3>
           <p>把 22 岁最想实现的一件事写下来。它会被封存在这台设备的“飞行记录器”里，等你以后再回来看看。</p>
           <div class="privacy-note"><i></i> 只保存在当前浏览器，不会上传到任何服务器。</div>
@@ -555,7 +669,7 @@
 
     <section class="section recorder-section" id="recorder">
       <div class="section-head reveal">
-        <p class="micro gold">11 · FLIGHT RECORDER</p>
+        <p class="micro gold">12 · FLIGHT RECORDER</p>
         <h3>写给未来的黑匣子。</h3>
       </div>
       <div class="recorder-card reveal" id="recorder-card">
@@ -641,7 +755,49 @@
     </article>
   </div>
 
-  <audio id="bgm" src="bgm.mp3?v=8.0" loop preload="metadata"></audio>
-  <script src="app.js?v=9.3-stable"></script>
+
+
+  <div class="hangar-modal" id="hangar-detail-modal" hidden role="dialog" aria-modal="true" aria-labelledby="hangar-detail-title">
+    <button class="hangar-modal-backdrop" id="hangar-detail-backdrop" type="button" aria-label="关闭航模详情"></button>
+    <article class="hangar-modal-card hangar-detail-card">
+      <button class="hangar-modal-close" id="hangar-detail-close" type="button" aria-label="关闭">×</button>
+      <div id="hangar-detail-content"></div>
+    </article>
+  </div>
+
+  <div class="hangar-delivery" id="hangar-delivery" hidden role="dialog" aria-modal="true" aria-labelledby="hangar-delivery-title">
+    <div class="hangar-delivery-doors" aria-hidden="true"><i></i><i></i></div>
+    <article class="hangar-delivery-card">
+      <span>HANGAR 022 · NEW DELIVERY</span>
+      <div class="hangar-delivery-photo" id="hangar-delivery-photo"></div>
+      <strong id="hangar-delivery-number">HM-001</strong>
+      <h3 id="hangar-delivery-title">AIRCRAFT MODEL</h3>
+      <p id="hangar-delivery-subtitle">has joined HANGAR 022.</p>
+      <button class="cta gold-btn" id="hangar-delivery-close" type="button">WELCOME TO THE FLEET <span>→</span></button>
+    </article>
+  </div>
+
+  <div class="hangar-modal" id="hangar-certificate-modal" hidden role="dialog" aria-modal="true" aria-labelledby="hangar-certificate-title">
+    <button class="hangar-modal-backdrop" id="hangar-certificate-backdrop" type="button" aria-label="关闭收藏证书"></button>
+    <article class="hangar-modal-card certificate-shell">
+      <button class="hangar-modal-close" id="hangar-certificate-close" type="button" aria-label="关闭">×</button>
+      <div class="collection-certificate" id="hangar-certificate-card">
+        <div class="certificate-mark">HH</div>
+        <span>HANGAR 022 · CERTIFICATE OF COLLECTION</span>
+        <strong id="hangar-certificate-no">HM-001</strong>
+        <h3 id="hangar-certificate-title">BOEING 787-9</h3>
+        <p id="hangar-certificate-meta">1:400 · PRIVATE MODEL FLEET</p>
+        <div class="certificate-rule"></div>
+        <small>ADDED TO COLLECTION</small>
+        <b id="hangar-certificate-date">—</b>
+        <em>HH022 PRIVATE AIRCRAFT ARCHIVE</em>
+      </div>
+      <button class="cta gold-btn certificate-download" id="hangar-certificate-download" type="button">SAVE CERTIFICATE PNG <span>↗</span></button>
+    </article>
+  </div>
+
+
+  <audio id="bgm" src="bgm.mp3?v=10-hangar" loop preload="metadata"></audio>
+  <script src="app.js?v=10-hangar"></script>
 </body>
 </html>
